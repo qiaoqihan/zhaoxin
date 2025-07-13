@@ -1,0 +1,11 @@
+<svg id="Outline_Essentional_UI_Close_Circle-2" data-name="Outline / Essentional, UI / Close Circle" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="36" height="36" viewBox="0 0 36 36">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="Outline_Essentional_UI_Close_Circle" data-name="Outline / Essentional, UI / Close Circle" width="36" height="36" fill="none"/>
+    </clipPath>
+  </defs>
+  <rect id="Outline_Essentional_UI_Close_Circle-3" data-name="Outline / Essentional, UI / Close Circle" width="36" height="36" fill="none"/>
+  <g id="Outline_Essentional_UI_Close_Circle-4" data-name="Outline / Essentional, UI / Close Circle" clip-path="url(#clip-path)">
+    <path id="Vector" d="M16.125,32.25A16.125,16.125,0,0,1,4.723,4.723a16.125,16.125,0,0,1,22.8,22.8A16.019,16.019,0,0,1,16.125,32.25Zm0-30A13.875,13.875,0,0,0,6.314,25.936,13.875,13.875,0,0,0,25.936,6.314,13.783,13.783,0,0,0,16.125,2.25ZM19.875,21a1.12,1.12,0,0,1-.8-.329l-2.954-2.955L13.171,20.67a1.125,1.125,0,0,1-1.591-1.591l2.955-2.954-2.955-2.955a1.125,1.125,0,0,1,1.591-1.591l2.955,2.955,2.954-2.955a1.125,1.125,0,0,1,1.591,1.591l-2.955,2.955,2.955,2.954a1.125,1.125,0,0,1-.8,1.921Z" transform="translate(1.875 1.875)" fill="#bdc1c6"/>
+  </g>
+</svg>
