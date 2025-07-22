@@ -66,6 +66,9 @@ export const interviewAPI = {
   // 创建面试安排
   createInterview: (data: any) => axios.post("/api/interv", data),
 
+  //创建新面试
+  createNewInterview: (data: any) => axios.post("/api/interv/create", data),
+
   // 更新面试信息
   updateInterview: (id: number, data: any) =>
     axios.put("/api/interv", { ...data, id }),

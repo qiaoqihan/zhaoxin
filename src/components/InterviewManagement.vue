@@ -148,7 +148,7 @@
                 <el-input v-model="editingStudent.name" disabled />
               </el-form-item>
             </el-card>
-
+            <!-- 性别分布 -->
             <el-card
               v-if="editingStudent.interv"
               class="form-section"

@@ -89,9 +89,10 @@
               </div>
               <!-- 显示题目内容 -->
               <div v-else class="content-section">
-                <p class="question-content">
-                  {{ selectedQuestion.title || "暂无题目内容" }}
-                </p>
+                <div
+                  class="question-content"
+                  v-html="renderedMarkdown(selectedQuestion.title)"
+                ></div>
               </div>
             </div>
 
@@ -216,6 +217,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
+import { marked } from "marked";
+// markdown渲染函数
+function renderedMarkdown(content: string) {
+  if (!content) return "暂无题目内容";
+  return marked.parse(content);
+}
 import { ElMessage, ElMessageBox, ElUpload } from "element-plus";
 import { Plus, Search, Edit } from "@element-plus/icons-vue";
 import { questionAPI } from "../api/index";

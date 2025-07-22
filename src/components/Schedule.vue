@@ -82,16 +82,30 @@
 
       <!-- 右侧月历和图例 -->
       <div class="sidebar-panel">
-        <el-card
-          class="add-interview-card"
-          :body-style="{ padding: '12px' }"
-          @click="showAddDialog = true"
-        >
-          <div class="add-interview-btn">
-            <img :src="AddIcon" alt="add" class="add-icon" />
-            <span class="add-text">添加新面试</span>
-          </div>
-        </el-card>
+        <div style="display: flex; gap: 12px; margin-bottom: 8px">
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="showManageTimeDialog = true"
+            style="flex: 1; cursor: pointer"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="add" class="add-icon" />
+              <span class="add-text">管理面试时间</span>
+            </div>
+          </el-card>
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="showAddDialog = true"
+            style="flex: 1; cursor: pointer"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="add" class="add-icon" />
+              <span class="add-text">添加新面试</span>
+            </div>
+          </el-card>
+        </div>
         <!-- 月历 -->
         <el-card class="calendar-card">
           <div class="calendar-header">
@@ -173,13 +187,7 @@
     <!-- 面试详情对话框 -->
     <el-dialog v-model="showDetailDialog" title="面试详情" width="600px">
       <div v-if="selectedInterview" class="interview-detail">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="编号">
-            {{ selectedInterview.code }}
-          </el-descriptions-item>
-          <el-descriptions-item label="标题">
-            {{ selectedInterview.title }}
-          </el-descriptions-item>
+        <el-descriptions :column="1" border>
           <el-descriptions-item label="候选人">
             {{ selectedInterview.candidate }}
           </el-descriptions-item>
@@ -192,15 +200,7 @@
           <el-descriptions-item label="部门">
             {{ getDepartmentName(selectedInterview.department) }}
           </el-descriptions-item>
-          <el-descriptions-item label="房间">
-            {{ selectedInterview.room }}
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getStatusTagType(selectedInterview.status)">
-              {{ getStatusName(selectedInterview.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="备注" span="2">
+          <el-descriptions-item label="备注">
             {{ selectedInterview.notes || "无" }}
           </el-descriptions-item>
         </el-descriptions>
@@ -208,13 +208,6 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showDetailDialog = false">关闭</el-button>
-          <el-button
-            type="primary"
-            @click="editInterview(selectedInterview!)"
-            :disabled="!selectedInterview"
-          >
-            编辑
-          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -223,7 +216,7 @@
     <el-dialog
       v-model="showAddDialog"
       :title="isEdit ? '编辑面试' : '添加面试'"
-      width="700px"
+      width="400px"
     >
       <el-form
         :model="interviewForm"
@@ -231,100 +224,51 @@
         ref="interviewFormRef"
         label-width="100px"
       >
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="面试编号" prop="code">
-              <el-input
-                v-model="interviewForm.code"
-                placeholder="请输入面试编号"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="面试标题" prop="title">
-              <el-input
-                v-model="interviewForm.title"
-                placeholder="请输入面试标题"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="候选人" prop="candidate">
-              <el-input
-                v-model="interviewForm.candidate"
-                placeholder="请输入候选人姓名"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="面试官" prop="interviewer">
-              <el-input
-                v-model="interviewForm.interviewer"
-                placeholder="请输入面试官姓名"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="面试时间" prop="datetime">
-              <el-date-picker
-                v-model="interviewForm.datetime"
-                type="datetime"
-                placeholder="选择面试时间"
-                format="YYYY-MM-DD HH:mm"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="面试部门" prop="department">
-              <el-select
-                v-model="interviewForm.department"
-                placeholder="选择部门"
-                style="width: 100%"
-              >
-                <el-option label="技术部" value="tech" />
-                <el-option label="视频部" value="video" />
-                <el-option label="美工部" value="art" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="面试房间" prop="room">
-              <el-input
-                v-model="interviewForm.room"
-                placeholder="请输入面试房间"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="面试状态" prop="status">
-              <el-select
-                v-model="interviewForm.status"
-                placeholder="选择状态"
-                style="width: 100%"
-              >
-                <el-option label="已安排" value="scheduled" />
-                <el-option label="进行中" value="ongoing" />
-                <el-option label="已完成" value="completed" />
-                <el-option label="已取消" value="cancelled" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="备注" prop="notes">
-          <el-input
-            v-model="interviewForm.notes"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入备注信息"
+        <el-form-item label="面试日期" prop="date">
+          <el-date-picker
+            v-model="interviewForm.date"
+            type="date"
+            placeholder="选择面试日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+            @change="handleInterviewDateChange"
           />
+        </el-form-item>
+        <el-form-item label="面试时间" prop="datetime">
+          <el-select
+            v-model="interviewForm.datetime"
+            placeholder="请选择时间"
+            style="width: 100%"
+            :disabled="timeOptions.length === 0"
+          >
+            <el-option
+              v-for="item in timeOptions"
+              :key="item.time"
+              :label="
+                formatTimeLabel(item.time) + (item.disabled ? '（已占用）' : '')
+              "
+              :value="item.time"
+              :disabled="item.disabled"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="学号" prop="candidate">
+          <el-input
+            v-model="interviewForm.candidate"
+            placeholder="请输入学号"
+          />
+        </el-form-item>
+        <el-form-item label="面试部门" prop="department">
+          <el-select
+            v-model="interviewForm.department"
+            placeholder="选择部门"
+            style="width: 100%"
+          >
+            <el-option label="技术部" value="tech" />
+            <el-option label="视频部" value="video" />
+            <el-option label="美工部" value="art" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -336,6 +280,66 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 管理面试时间对话框 -->
+    <el-dialog
+      v-model="showManageTimeDialog"
+      title="管理面试时间"
+      width="400px"
+    >
+      <el-form :model="manageTimeForm" label-width="90px">
+        <el-form-item label="日期">
+          <el-date-picker
+            v-model="manageTimeForm.date"
+            type="date"
+            placeholder="选择日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="开始时间">
+          <el-time-picker
+            v-model="manageTimeForm.startTime"
+            placeholder="选择开始时间"
+            format="HH:mm"
+            value-format="HH:mm:ss"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="结束时间">
+          <el-time-picker
+            v-model="manageTimeForm.endTime"
+            placeholder="选择结束时间"
+            format="HH:mm"
+            value-format="HH:mm:ss"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="时间间隔">
+          <el-input-number
+            v-model="manageTimeForm.interval"
+            :min="5"
+            :max="180"
+            :step="5"
+            style="width: 100%"
+            placeholder="分钟"
+          />
+          <span style="margin-left: 8px">分钟</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showManageTimeDialog = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="handleManageTimeSave"
+            :loading="savingTime"
+            >保存</el-button
+          >
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -343,7 +347,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
-import { interviewAPI } from "../api";
+import { interviewAPI, studentAPI } from "../api";
 import AddIcon from "../assets/Linear - Essentional, UI - Add Circle.svg";
 import type { CSSProperties } from "vue";
 
@@ -366,13 +370,11 @@ interface InterviewDateInfo {
 
 interface ScheduleInterview {
   id: number;
-  code: string;
   title: string;
   candidate: string;
   datetime: string;
   interviewer: string;
   department: string;
-  room: string;
   status: string;
   notes?: string;
 }
@@ -382,7 +384,17 @@ const loading = ref(false);
 const saving = ref(false);
 const showDetailDialog = ref(false);
 const showAddDialog = ref(false);
+const showManageTimeDialog = ref(false);
 const isEdit = ref(false);
+
+// 管理面试时间表单
+const manageTimeForm = reactive({
+  date: "",
+  startTime: "",
+  endTime: "",
+  interval: 30,
+});
+const savingTime = ref(false);
 
 const currentWeek = ref(new Date());
 const currentMonth = ref(new Date());
@@ -392,33 +404,83 @@ const interviewDates = ref<InterviewDateInfo[]>([]);
 
 // 表单数据
 const interviewForm = reactive({
-  id: 0,
-  code: "",
-  title: "",
+  date: "", // 新增：面试日期
+  datetime: "", // 选中的具体时间
   candidate: "",
-  datetime: "",
-  interviewer: "",
   department: "",
-  room: "",
-  status: "scheduled",
-  notes: "",
 });
+
+// 可用/不可用时间段
+interface TimeOption {
+  time: string;
+  disabled: boolean;
+}
+const timeOptions = ref<TimeOption[]>([]);
+
+// 格式化时间，仅显示 xx:xx:xx
+function formatTimeLabel(time: string) {
+  if (!time) return "";
+  let t = time;
+  if (t.includes("T")) {
+    t = t.split("T")[1];
+    t = t.replace(/([\+\-][0-9:]+|Z)$/i, "");
+  } else if (t.includes(" ")) {
+    t = t.split(" ")[1];
+  }
+  const parts = t.split(":");
+  if (parts.length >= 2) {
+    return parts.slice(0, 3).join(":");
+  }
+  return t;
+}
+
+// 选择日期后获取可用/不可用时间
+const handleInterviewDateChange = async (date: string) => {
+  interviewForm.datetime = "";
+  timeOptions.value = [];
+  if (!date) return;
+  try {
+    // 构造标准格式时间（当天0点，UTC）
+    const dateParam = `${date}T00:00:00Z`;
+    const res = await interviewAPI.getInterviewsByDate(dateParam);
+    if (res.data && res.data.success && res.data.data) {
+      const available = Array.isArray(res.data.data.available)
+        ? res.data.data.available
+        : [];
+      const unavailable = Array.isArray(res.data.data.unavailable)
+        ? res.data.data.unavailable
+        : [];
+      // 合并所有时间，available优先
+      const allTimes: TimeOption[] = [];
+      available.forEach((item: any) => {
+        allTimes.push({ time: item.time, disabled: false });
+      });
+      unavailable.forEach((item: any) => {
+        if (!allTimes.some((opt) => opt.time === item.time)) {
+          allTimes.push({ time: item.time, disabled: true });
+        }
+      });
+      // 按时间排序
+      allTimes.sort((a, b) => a.time.localeCompare(b.time));
+      timeOptions.value = allTimes;
+    } else {
+      timeOptions.value = [];
+    }
+  } catch (e) {
+    timeOptions.value = [];
+  }
+};
 
 const interviewFormRef = ref();
 
 // 表单验证规则
 const interviewRules = {
-  code: [{ required: true, message: "请输入面试编号", trigger: "blur" }],
-  title: [{ required: true, message: "请输入面试标题", trigger: "blur" }],
-  candidate: [{ required: true, message: "请输入候选人姓名", trigger: "blur" }],
+  date: [{ required: true, message: "请选择面试日期", trigger: "change" }],
   datetime: [{ required: true, message: "请选择面试时间", trigger: "change" }],
-  interviewer: [
-    { required: true, message: "请输入面试官姓名", trigger: "blur" },
-  ],
+  candidate: [{ required: true, message: "请输入候选人学号", trigger: "blur" }],
   department: [
     { required: true, message: "请选择面试部门", trigger: "change" },
   ],
-  room: [{ required: true, message: "请输入面试房间", trigger: "blur" }],
 };
 
 // 时间段配置
@@ -586,26 +648,6 @@ const getStatusClass = (status: string) => {
   return "scheduled";
 };
 
-const getStatusName = (status: string) => {
-  const statusMap: Record<string, string> = {
-    scheduled: "已安排",
-    ongoing: "进行中",
-    completed: "已完成",
-    cancelled: "已取消",
-  };
-  return statusMap[status] || status;
-};
-
-const getStatusTagType = (status: string) => {
-  const typeMap: Record<string, string> = {
-    scheduled: "primary",
-    ongoing: "warning",
-    completed: "success",
-    cancelled: "danger",
-  };
-  return typeMap[status] || "primary";
-};
-
 // 获取指定时间段的面试（返回该时间段内所有开始的面试）
 const getInterviewsForSlot = (date: string, time: string) => {
   // 只返回在该时间格子内开始的面试
@@ -664,14 +706,10 @@ const handleCellClick = (date: string, time: string) => {
   const datetime = `${date} ${time}:00:00`;
   Object.assign(interviewForm, {
     id: 0,
-    code: "",
-    title: "",
     candidate: "",
     datetime,
     interviewer: "",
     department: "",
-    room: "",
-    status: "scheduled",
     notes: "",
   });
   isEdit.value = false;
@@ -683,37 +721,20 @@ const showInterviewDetail = (interview: ScheduleInterview) => {
   showDetailDialog.value = true;
 };
 
-const editInterview = (interview: ScheduleInterview) => {
-  Object.assign(interviewForm, interview);
-  isEdit.value = true;
-  showDetailDialog.value = false;
-  showAddDialog.value = true;
-};
-
 const saveInterview = async () => {
   if (!interviewFormRef.value) return;
-
   try {
     await interviewFormRef.value.validate();
     saving.value = true;
-
-    if (isEdit.value) {
-      // 更新面试
-      await interviewAPI.updateInterview(interviewForm.id, interviewForm);
-      const index = interviews.value.findIndex(
-        (i) => i.id === interviewForm.id
-      );
-      if (index !== -1) {
-        interviews.value[index] = { ...interviewForm };
-      }
-      ElMessage.success("面试信息更新成功");
-    } else {
-      // 创建新面试
-      const newInterview = { ...interviewForm, id: Date.now() };
-      interviews.value.push(newInterview);
-      ElMessage.success("面试添加成功");
-    }
-
+    // 仅支持添加新面试
+    const payload = {
+      time: interviewForm.datetime,
+      netid: interviewForm.candidate,
+      department: interviewForm.department,
+    };
+    await interviewAPI.createNewInterview(payload);
+    ElMessage.success("面试添加成功");
+    await loadInterviews();
     showAddDialog.value = false;
   } catch (error) {
     console.error("保存失败:", error);
@@ -773,7 +794,6 @@ const fetchInterviewDates = async () => {
 };
 
 // 获取某天的面试信息并转换为日程格式
-//姓名暂记为学号信息
 const fetchInterviewsByDate = async (date: string) => {
   try {
     // 构造标准格式的时间参数
@@ -786,25 +806,30 @@ const fetchInterviewsByDate = async (date: string) => {
       // 转换为日程格式
       const convertedInterviews: ScheduleInterview[] = [];
 
-      // 如果data为null，表示当天没有面试
       if (data === null) {
         console.log(`${date} 当天没有面试`);
       } else {
         if (data.unavailable && Array.isArray(data.unavailable)) {
-          data.unavailable.forEach((interview: Interview) => {
-            convertedInterviews.push({
-              id: interview.id,
-              code: `INT-${interview.id}`,
-              title: `面试-${interview.netid || "未知学生"}`,
-              candidate: interview.netid || "未知学生",
-              datetime: interview.time,
-              interviewer: interview.interviewer || "面试官",
-              department: interview.department || "未知部门",
-              room: "面试室",
-              status: "scheduled",
-              notes: interview.evaluation || "",
-            });
-          });
+          // 并发获取所有学生姓名
+          const namePromises = data.unavailable.map(
+            async (interview: Interview) => {
+              const name = interview.netid
+                ? await getStudent(interview.netid)
+                : null;
+              return {
+                id: interview.id,
+                title: `面试-${name || interview.netid || "未知学生"}`,
+                candidate: name || interview.netid || "未知学生",
+                datetime: interview.time,
+                interviewer: interview.interviewer || "面试官",
+                department: interview.department || "未知部门",
+                status: "scheduled",
+                notes: interview.evaluation || "",
+              };
+            }
+          );
+          const interviewsWithNames = await Promise.all(namePromises);
+          convertedInterviews.push(...interviewsWithNames);
         }
       }
 
@@ -821,10 +846,22 @@ const fetchInterviewsByDate = async (date: string) => {
   }
 };
 
-// 获取指定日期的面试数量
-const getInterviewCountForDate = (date: string) => {
-  const dateInfo = interviewDates.value.find((d) => d.date === date);
-  return dateInfo ? dateInfo.total : 0;
+//获取学生姓名
+const getStudent = async (netid: string): Promise<string | null> => {
+  try {
+    const response = await studentAPI.getStudents({ netid }); // 传递学号
+    if (
+      response.data &&
+      response.data.success &&
+      Array.isArray(response.data.data) &&
+      response.data.data.length > 0
+    ) {
+      return response.data.data[0].name || null;
+    }
+  } catch (error) {
+    console.error("获取学生数据失败:", error);
+  }
+  return null;
 };
 
 // 计算面试在单元格内的绝对定位样式（30分钟一格，支持分钟精度）
@@ -849,42 +886,68 @@ function getInterviewItemStyle(datetime: string): CSSProperties {
   };
 }
 
+// 管理面试时间保存
+const handleManageTimeSave = async () => {
+  if (
+    !manageTimeForm.date ||
+    !manageTimeForm.startTime ||
+    !manageTimeForm.endTime ||
+    !manageTimeForm.interval
+  ) {
+    ElMessage.warning("请填写完整信息");
+    return;
+  }
+  savingTime.value = true;
+  try {
+    const date = manageTimeForm.date;
+    const start = `${date}T${manageTimeForm.startTime}+08:00`;
+    const end = `${date}T${manageTimeForm.endTime}+08:00`;
+    await interviewAPI.createInterview({
+      timerange: {
+        start,
+        end,
+      },
+      interval: manageTimeForm.interval,
+    });
+    ElMessage.success("面试时间设置成功");
+    showManageTimeDialog.value = false;
+  } catch (e) {
+    ElMessage.error("保存失败");
+  } finally {
+    savingTime.value = false;
+  }
+};
+
 const loadMockData = () => {
   // 模拟面试数据，仅在API调用失败时使用
   interviews.value = [
     {
       id: 1,
-      code: "INT-1",
       title: "技术面试",
       candidate: "张三",
       datetime: "2025-07-07 09:00:00",
       interviewer: "李老师",
       department: "tech",
-      room: "技术部面试室1",
       status: "scheduled",
       notes: "技术部面试",
     },
     {
       id: 2,
-      code: "INT-2",
       title: "美工面试",
       candidate: "王五",
       datetime: "2025-07-07 10:00:00",
       interviewer: "赵老师",
       department: "art",
-      room: "美工部面试室1",
       status: "scheduled",
       notes: "美工部面试",
     },
     {
       id: 3,
-      code: "INT-3",
       title: "视频面试",
       candidate: "刘七",
       datetime: "2025-07-07 13:00:00",
       interviewer: "陈老师",
       department: "video",
-      room: "视频部面试室1",
       status: "scheduled",
       notes: "视频制作面试",
     },
@@ -1256,6 +1319,7 @@ onMounted(async () => {
 .legend-card {
   flex-shrink: 0;
   flex: 1;
+  border: none !important;
 }
 
 .legend-items {

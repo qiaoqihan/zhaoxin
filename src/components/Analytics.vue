@@ -171,6 +171,9 @@ const stats = reactive({
     tech: 0,
     video: 0,
     design: 0,
+    techPassed: 0,
+    videoPassed: 0,
+    designPassed: 0,
   },
   collegeStats: {
     total: 0,
@@ -210,6 +213,9 @@ const fetchStatistics = async () => {
         stats.departmentStats.tech = data.depart.tech || 0;
         stats.departmentStats.video = data.depart.video || 0;
         stats.departmentStats.design = data.depart.art || 0;
+        stats.departmentStats.techPassed = data.depart.tech_pass || 0;
+        stats.departmentStats.videoPassed = data.depart.video_pass || 0;
+        stats.departmentStats.designPassed = data.depart.art_pass || 0;
         stats.departmentStats.total =
           (data.depart.tech || 0) +
           (data.depart.video || 0) +
@@ -383,15 +389,21 @@ const initDepartmentBarChart = () => {
       },
       formatter: function (params: any) {
         const items = params
-          .map((item: any) => `${item.name}: ${item.value}人`)
+          .map(
+            (item: any) => `${item.seriesName} - ${item.name}: ${item.value}人`
+          )
           .join("<br/>");
         return items;
       },
     },
+    legend: {
+      data: ["总人数", "通过人数"],
+      top: "8%",
+    },
     grid: {
       left: "10%",
       right: "10%",
-      top: "15%",
+      top: "18%",
       bottom: "10%",
       containLabel: true,
     },
@@ -412,23 +424,43 @@ const initDepartmentBarChart = () => {
     },
     series: [
       {
-        name: "人数",
+        name: "总人数",
         type: "bar",
+        itemStyle: { color: "#FF715B" },
         data: [
           {
             value: stats.departmentStats.tech,
-            itemStyle: { color: "#FDCA40" },
+            itemStyle: { color: "#FF715B" },
           },
           {
             value: stats.departmentStats.video,
-            itemStyle: { color: "#6665DD" },
+            itemStyle: { color: "#FF715B" },
           },
           {
             value: stats.departmentStats.design,
             itemStyle: { color: "#FF715B" },
           },
         ],
-        barWidth: "40%",
+        barWidth: "30%",
+        barGap: 0,
+      },
+      {
+        name: "通过人数",
+        type: "bar",
+        itemStyle: { color: "#0B9CF9" },
+        data: [
+          {
+            value: stats.departmentStats.techPassed,
+          },
+          {
+            value: stats.departmentStats.videoPassed,
+          },
+          {
+            value: stats.departmentStats.designPassed,
+          },
+        ],
+        barWidth: "30%",
+        barGap: "30%",
       },
     ],
   };
