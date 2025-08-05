@@ -329,7 +329,7 @@ const toggleMode = () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: white;
+  background: #f8f9fa;
 }
 
 .login-card {
