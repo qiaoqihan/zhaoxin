@@ -40,7 +40,7 @@ const developmentConfig: SystemConfig = {
 const productionConfig: SystemConfig = {
   ...developmentConfig,
   api: {
-    baseURL: "https://", // 实际的API地址
+    baseURL: "https://zhaoxin.tiaozhan.com/api", // 实际的API地址
     timeout: 15000,
   },
 };

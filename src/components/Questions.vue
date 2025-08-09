@@ -417,7 +417,7 @@ const deleteSelectedQuestion = async () => {
 };
 
 // 防抖搜索
-let searchTimer: number;
+let searchTimer: NodeJS.Timeout;
 const debounceSearch = () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
