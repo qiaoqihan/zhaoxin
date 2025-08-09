@@ -4,7 +4,7 @@
       <!-- 侧边导航栏 -->
       <el-aside width="320px" class="sidebar">
         <div class="logo">
-          <img src="../assets/logo.svg" alt="Logo" />
+          <img src="../assets/Logo.svg" alt="Logo" />
           <p>Courses.</p>
         </div>
         <el-menu
