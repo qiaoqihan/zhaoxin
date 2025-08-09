@@ -1,0 +1,36 @@
+kind: pipeline
+type: docker
+name: build
+
+steps:
+  - name: build
+    image: node:alpine
+    commands:
+      - npm config set registry http://registry.npmmirror.com
+      - npm install
+      - npm run build
+    volumes:
+      - name: node_module
+        path: /root/.npm
+
+  - name: deploy
+    image: alpine
+    commands:
+      - cp -r dist/* /var/www
+    volumes:
+      - name: www
+        path: /var/www
+
+volumes:
+- name: www
+  host:
+    path: /tz-master-data/app_data/front-end/${DRONE_REPO_NAME,,}
+- name: node_module
+  host:
+    path: /tz-master-data/app_cache/npm
+
+trigger:
+  event:
+  - tag
+
+
