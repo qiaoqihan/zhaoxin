@@ -21,5 +21,5 @@ export default defineConfig({
       },
     },
   },
-  base: 'manage'
+  base: '/manage/'
 });
