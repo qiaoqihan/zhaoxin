@@ -46,8 +46,7 @@ const productionConfig: SystemConfig = {
 };
 
 // 根据环境选择配置
-const config: SystemConfig =
-  process.env.NODE_ENV === "production" ? productionConfig : developmentConfig;
+const config: SystemConfig = productionConfig
 
 export default config;
 
