@@ -23,19 +23,24 @@ import router from "../router";
 
 axios.interceptors.response.use(
   (response) => {
-    if (
-      response?.data &&
-      response.data.success === false &&
-      response.data.code === 6
-    ) {
-      if (!hasShownLoginExpired) {
-        hasShownLoginExpired = true;
-        localStorage.removeItem("is_logged_in");
-        localStorage.removeItem("admin_info");
-        ElMessage.error("登录过期，请重新登录");
-        router.replace("/login");
+    // 检查后端返回的 success 字段
+    if (response?.data && response.data.success === false) {
+      if (response.data.code === 6) {
+        // 登录过期的特殊处理
+        if (!hasShownLoginExpired) {
+          hasShownLoginExpired = true;
+          localStorage.removeItem("is_logged_in");
+          localStorage.removeItem("admin_info");
+          ElMessage.error("登录过期，请重新登录");
+          router.replace("/login");
+        }
+        return Promise.reject(new Error("登录过期"));
+      } else {
+        // 其他错误情况，创建一个包含后端错误信息的错误对象
+        const error = new Error(response.data.message || "操作失败");
+        (error as any).response = response;
+        return Promise.reject(error);
       }
-      return Promise.reject(new Error("登录过期"));
     }
     return response;
   },
@@ -54,6 +59,79 @@ axios.interceptors.response.use(
 );
 
 // API接口定义
+
+// 通用错误处理函数
+export const handleApiError = (error: any): string => {
+  if (error?.response?.data) {
+    const { data } = error.response;
+    
+    // 优先使用后端返回的具体错误信息
+    if (data.message && typeof data.message === 'string') {
+      // 清理错误信息中的换行符和多余空格
+      return data.message.replace(/\n/g, '').trim();
+    }
+    
+    // 根据后端错误代码返回对应的错误信息
+    switch (data.code) {
+      case 3:
+        return "输入参数有误，请检查输入信息";
+      case 4:
+        return "系统错误，请稍后重试";
+      case 5:
+        return "操作失败，请检查输入信息";
+      case 6:
+        return "登录已过期，请重新登录";
+      case 7:
+        return "权限不足，无法执行此操作";
+      case 8:
+        return "记录不存在，请检查输入信息";
+      case 9:
+        return "存在冲突，请检查时间安排";
+      case 10:
+        return "密码错误，请重新输入";
+      default:
+        return "操作失败，请重试";
+    }
+  }
+
+  // 处理HTTP状态码错误
+  if (error?.response?.status) {
+    switch (error.response.status) {
+      case 400:
+        return "请求参数错误，请检查输入信息";
+      case 401:
+        return "登录已过期，请重新登录";
+      case 403:
+        return "权限不足，无法执行此操作";
+      case 404:
+        return "请求的资源不存在";
+      case 500:
+        return "服务器内部错误，请稍后重试";
+      case 502:
+        return "服务器网关错误，请稍后重试";
+      case 503:
+        return "服务不可用，请稍后重试";
+      default:
+        return `服务器错误 (${error.response.status})，请稍后重试`;
+    }
+  }
+
+  // 处理网络错误
+  if (error?.code) {
+    switch (error.code) {
+      case "ECONNREFUSED":
+      case "NETWORK_ERROR":
+        return "网络连接失败，请检查网络连接";
+      case "ECONNABORTED":
+        return "请求超时，请稍后重试";
+      default:
+        return "网络错误，请检查网络连接";
+    }
+  }
+
+  return "未知错误，请重试";
+};
+
 export const studentAPI = {
   // 获取学生列表
   getStudents: (params?: any) => axios.get("/api/admin/stu", { params }),

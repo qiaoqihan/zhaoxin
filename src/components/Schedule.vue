@@ -347,7 +347,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
-import { interviewAPI, studentAPI } from "../api";
+import { interviewAPI, studentAPI, handleApiError } from "../api";
 import AddIcon from "../assets/Linear - Essentional, UI - Add Circle.svg";
 import type { CSSProperties } from "vue";
 
@@ -736,9 +736,12 @@ const saveInterview = async () => {
     ElMessage.success("面试添加成功");
     await loadInterviews();
     showAddDialog.value = false;
-  } catch (error) {
+  } catch (error: any) {
     console.error("保存失败:", error);
-    ElMessage.error("保存失败，请重试");
+    
+    // 使用通用错误处理函数
+    const errorMessage = handleApiError(error);
+    ElMessage.error(errorMessage);
   } finally {
     saving.value = false;
   }
