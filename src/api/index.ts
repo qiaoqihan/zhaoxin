@@ -36,7 +36,7 @@ axios.interceptors.response.use(
         }
         return Promise.reject(new Error("登录过期"));
       } else {
-        // 其他错误情况，创建一个包含后端错误信息的错误对象
+        // 其他错误情况
         const error = new Error(response.data.message || "操作失败");
         (error as any).response = response;
         return Promise.reject(error);
@@ -64,13 +64,13 @@ axios.interceptors.response.use(
 export const handleApiError = (error: any): string => {
   if (error?.response?.data) {
     const { data } = error.response;
-    
+
     // 优先使用后端返回的具体错误信息
-    if (data.message && typeof data.message === 'string') {
+    if (data.message && typeof data.message === "string") {
       // 清理错误信息中的换行符和多余空格
-      return data.message.replace(/\n/g, '').trim();
+      return data.message.replace(/\n/g, "").trim();
     }
-    
+
     // 根据后端错误代码返回对应的错误信息
     switch (data.code) {
       case 3:
@@ -168,17 +168,17 @@ export const interviewAPI = {
 
 export const questionAPI = {
   // 获取题目列表
-  getQuestions: (params?: any) => axios.get("/api/que", { params }),
+  getQuestions: (params?: any) => axios.get("/api/que/", { params }),
 
   // 创建题目
   createQuestion: (data: any) =>
-    axios.post("/api/que", {
+    axios.post("/api/que/", {
       list: [data],
     }),
 
   // 更新题目信息
   updateQuestion: (id: number, data: any) =>
-    axios.put("/api/que", { id, ...data }),
+    axios.put("/api/que/", { id, ...data }),
 
   // 删除题目
   deleteQuestion: (id: number) =>

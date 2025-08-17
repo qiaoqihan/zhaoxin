@@ -739,7 +739,6 @@ const saveInterview = async () => {
   } catch (error: any) {
     console.error("保存失败:", error);
     
-    // 使用通用错误处理函数
     const errorMessage = handleApiError(error);
     ElMessage.error(errorMessage);
   } finally {
