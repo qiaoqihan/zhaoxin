@@ -143,21 +143,98 @@
             label-position="top"
             style="height: calc(100vh - 250px); overflow-y: auto"
           >
+            <!-- 基本信息 -->
             <el-card class="form-section" shadow="never">
+              <template #header>
+                <div class="section-header">基本信息</div>
+              </template>
               <el-form-item label="姓名" prop="name">
-                <el-input v-model="editingStudent.name" disabled />
+                <el-input
+                  v-model="editingStudent.name"
+                  placeholder="请输入姓名"
+                />
+              </el-form-item>
+              <el-form-item label="学号" prop="netid">
+                <el-input
+                  v-model="editingStudent.netid"
+                  placeholder="请输入学号"
+                />
+              </el-form-item>
+              <el-form-item label="手机号" prop="phone">
+                <el-input
+                  v-model="editingStudent.phone"
+                  placeholder="请输入手机号"
+                />
+              </el-form-item>
+              <el-form-item label="书院" prop="school">
+                <el-input
+                  v-model="editingStudent.school"
+                  placeholder="请输入书院"
+                />
+              </el-form-item>
+              <el-form-item label="了解来源" prop="whereknow">
+                <el-input
+                  v-model="editingStudent.whereknow"
+                  placeholder="请输入了解来源"
+                  disabled
+                />
               </el-form-item>
             </el-card>
-            <!-- 性别分布 -->
+
+            <!-- 技能信息 -->
+            <el-card class="form-section" shadow="never">
+              <template #header>
+                <div class="section-header">技能信息</div>
+              </template>
+              <el-form-item label="已掌握技能" prop="mastered">
+                <el-input
+                  v-model="editingStudent.mastered"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="请输入已掌握的技能"
+                />
+              </el-form-item>
+              <el-form-item label="想要学习" prop="tomaster">
+                <el-input
+                  v-model="editingStudent.tomaster"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="请输入想要学习的内容"
+                />
+              </el-form-item>
+              <el-form-item label="意向部门" prop="depart">
+                <el-select
+                  v-model="editingStudent.depart"
+                  placeholder="请选择意向部门"
+                  style="width: 100%"
+                >
+                  <el-option label="技术部" value="tech" />
+                  <el-option label="视频部" value="video" />
+                  <el-option label="美工部" value="art" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="标签" prop="tag">
+                <el-input
+                  v-model="editingStudent.tag"
+                  placeholder="请输入标签"
+                  disabled
+                />
+              </el-form-item>
+            </el-card>
+
+            <!-- 面试信息 -->
             <el-card
               v-if="editingStudent.interv"
               class="form-section"
               shadow="never"
             >
-              <el-form-item label="部门">
+              <template #header>
+                <div class="section-header">面试信息</div>
+              </template>
+              <el-form-item label="面试部门">
                 <el-select
                   v-model="editingStudent.interv.department"
-                  placeholder="请选择部门"
+                  placeholder="请选择面试部门"
                   style="width: 100%"
                 >
                   <el-option label="技术部" value="tech" />
@@ -176,12 +253,6 @@
                   placeholder="请输入面试评价"
                 />
               </el-form-item>
-            </el-card>
-            <el-card
-              v-if="editingStudent.interv"
-              class="form-section"
-              shadow="never"
-            >
               <el-form-item label="是否通过">
                 <el-select
                   v-model="editingStudent.interv.pass"
@@ -318,7 +389,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { MoreFilled } from "@element-plus/icons-vue";
-import { studentAPI, interviewAPI } from "../api";
+import { studentAPI, interviewAPI, handleApiError } from "../api";
 import CloseIcon from "../assets/Outline - Essentional, UI - Close Circle.svg";
 import ArrowLeftIcon from "../assets/Outline - Arrows - Alt Arrow Left.svg";
 import ArrowRightIcon from "../assets/Outline - Arrows - Alt Arrow Right.svg";
@@ -372,6 +443,7 @@ const dailyInterviewsData = ref<InterviewsResponse>({
   available: [],
   unavailable: [],
 });
+const bookedInterviewCounts = ref<Map<string, number>>(new Map()); // 存储每个日期已预约的面试数量
 const currentPage = ref(1);
 const pageSize = ref(3);
 
@@ -478,8 +550,8 @@ const dailyInterviews = computed(() => {
   const available = dailyInterviewsData.value.available || [];
   const unavailable = dailyInterviewsData.value.unavailable || [];
 
-  // 合并可用和不可用的面试，并添加学生信息
-  const allInterviews = [...available, ...unavailable];
+  // 只显示已被预约的面试（不可用时间段）
+  const allInterviews = [...unavailable];
 
   return allInterviews
     .map((interview) => {
@@ -699,29 +771,42 @@ const closeEdit = () => {
 };
 
 const saveStudent = async () => {
-  if (
-    !studentFormRef.value ||
-    !editingStudent.value ||
-    !editingStudent.value.interv
-  )
-    return;
+  if (!studentFormRef.value || !editingStudent.value) return;
 
   try {
     await studentFormRef.value.validate();
     saving.value = true;
 
-    const interviewData = {
+    // 准备学生基本信息数据（只包含后端支持更新的字段）
+    const studentData = {
       netid: editingStudent.value.netid,
-      department: editingStudent.value.interv.department,
-      star: editingStudent.value.interv.star,
-      pass: editingStudent.value.interv.pass,
-      evaluation: editingStudent.value.interv.evaluation,
+      name: editingStudent.value.name,
+      phone: editingStudent.value.phone,
+      school: editingStudent.value.school,
+      mastered: editingStudent.value.mastered,
+      tomaster: editingStudent.value.tomaster,
+      depart: editingStudent.value.depart,
+      queid: editingStudent.value.queid || 0,
     };
 
-    await interviewAPI.updateInterview(
-      editingStudent.value.interv.id,
-      interviewData
-    );
+    // 更新学生基本信息
+    await studentAPI.updateStudent(editingStudent.value.id, studentData);
+
+    // 如果有面试信息，更新面试信息
+    if (editingStudent.value.interv) {
+      const interviewData = {
+        netid: editingStudent.value.netid,
+        department: editingStudent.value.interv.department,
+        star: editingStudent.value.interv.star,
+        pass: editingStudent.value.interv.pass,
+        evaluation: editingStudent.value.interv.evaluation,
+      };
+
+      await interviewAPI.updateInterview(
+        editingStudent.value.interv.id,
+        interviewData
+      );
+    }
 
     // 只有API调用成功后才更新本地数据
     const studentIndex = students.value.findIndex(
@@ -732,11 +817,12 @@ const saveStudent = async () => {
       updateStatistics();
     }
 
-    ElMessage.success("面试信息更新成功");
+    ElMessage.success("学生信息更新成功");
     closeEdit();
   } catch (error) {
     console.error("保存失败:", error);
-    ElMessage.error("保存失败，请检查表单数据或网络连接");
+    const errorMessage = handleApiError(error);
+    ElMessage.error(`保存失败: ${errorMessage}`);
   } finally {
     saving.value = false;
   }
@@ -786,6 +872,28 @@ const fetchInterviewDates = async () => {
   }
 };
 
+// 预加载所有日期的已预约面试数量
+const preloadBookedInterviewCounts = async () => {
+  // 为每个有面试的日期获取已预约数量
+  const loadPromises = interviewDates.value.map(async (dateInfo) => {
+    try {
+      const dateParam = `${dateInfo.date}T00:00:00Z`;
+      const response = await interviewAPI.getInterviewsByDate(dateParam);
+      if (response.data && response.data.success) {
+        const unavailableCount = response.data.data?.unavailable?.length || 0;
+        bookedInterviewCounts.value.set(dateInfo.date, unavailableCount);
+      } else {
+        bookedInterviewCounts.value.set(dateInfo.date, 0);
+      }
+    } catch (error) {
+      console.error(`获取 ${dateInfo.date} 面试信息失败:`, error);
+      bookedInterviewCounts.value.set(dateInfo.date, 0);
+    }
+  });
+
+  await Promise.all(loadPromises);
+};
+
 // 获取某天的面试信息
 const fetchInterviewsByDate = async (date: string) => {
   loading.value = true;
@@ -799,8 +907,13 @@ const fetchInterviewsByDate = async (date: string) => {
         available: [],
         unavailable: [],
       };
+      // 更新该日期的已预约面试数量
+      const unavailableCount =
+        dailyInterviewsData.value.unavailable?.length || 0;
+      bookedInterviewCounts.value.set(date, unavailableCount);
     } else {
       dailyInterviewsData.value = { available: [], unavailable: [] };
+      bookedInterviewCounts.value.set(date, 0);
     }
   } catch (error) {
     console.error("获取面试信息失败:", error);
@@ -820,10 +933,11 @@ const isSelectedDate = (date: string) => {
   return selectedDate.value === date;
 };
 
-// 获取某日的面试数量
+// 获取某日的面试数量（已预约的面试）
 const getInterviewCountForDate = (date: string) => {
-  const dateInfo = interviewDates.value.find((d) => d.date === date);
-  return dateInfo ? dateInfo.total : 0;
+  // 从已预约面试数量映射中获取
+  const count = bookedInterviewCounts.value.get(date);
+  return count !== undefined ? count : 0;
 };
 
 const loadMockData = () => {
@@ -892,6 +1006,9 @@ onMounted(async () => {
   // 获取数据
   await fetchStudents();
   await fetchInterviewDates();
+
+  // 预加载所有日期的已预约面试数量
+  await preloadBookedInterviewCounts();
 
   // 获取当前日期的面试信息
   await fetchInterviewsByDate(selectedDate.value);
@@ -1144,6 +1261,12 @@ onMounted(async () => {
 
 .form-section {
   margin-bottom: 15px;
+}
+
+.section-header {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
 }
 
 .form-actions {

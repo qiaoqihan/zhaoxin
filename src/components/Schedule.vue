@@ -208,6 +208,12 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showDetailDialog = false">关闭</el-button>
+          <el-button type="primary" @click="editInterview" :loading="saving">
+            修改时间
+          </el-button>
+          <el-button type="danger" @click="cancelInterview" :loading="deleting">
+            取消面试
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -345,7 +351,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
 import { interviewAPI, studentAPI, handleApiError } from "../api";
 import AddIcon from "../assets/Linear - Essentional, UI - Add Circle.svg";
@@ -372,6 +378,7 @@ interface ScheduleInterview {
   id: number;
   title: string;
   candidate: string;
+  netid: string;
   datetime: string;
   interviewer: string;
   department: string;
@@ -382,6 +389,7 @@ interface ScheduleInterview {
 // 响应式数据
 const loading = ref(false);
 const saving = ref(false);
+const deleting = ref(false);
 const showDetailDialog = ref(false);
 const showAddDialog = ref(false);
 const showManageTimeDialog = ref(false);
@@ -495,6 +503,13 @@ const timeSlots = [
   { time: "15:00", display: "下午3:00" },
   { time: "16:00", display: "下午4:00" },
   { time: "17:00", display: "下午5:00" },
+  { time: "18:00", display: "下午6:00" },
+  { time: "19:00", display: "下午7:00" },
+  { time: "20:00", display: "下午8:00" },
+  { time: "21:00", display: "下午9:00" },
+  { time: "22:00", display: "下午10:00" },
+  { time: "23:00", display: "下午11:00" },
+  { time: "24:00", display: "下午12:00" },
 ];
 
 // 计算属性
@@ -705,12 +720,10 @@ const handleCellClick = (date: string, time: string) => {
   // 点击空白格子时，预填充时间并打开添加对话框
   const datetime = `${date} ${time}:00:00`;
   Object.assign(interviewForm, {
-    id: 0,
-    candidate: "",
+    date: date,
     datetime,
-    interviewer: "",
+    candidate: "",
     department: "",
-    notes: "",
   });
   isEdit.value = false;
   showAddDialog.value = true;
@@ -726,23 +739,92 @@ const saveInterview = async () => {
   try {
     await interviewFormRef.value.validate();
     saving.value = true;
-    // 仅支持添加新面试
-    const payload = {
-      time: interviewForm.datetime,
-      netid: interviewForm.candidate,
-      department: interviewForm.department,
-    };
-    await interviewAPI.createNewInterview(payload);
-    ElMessage.success("面试添加成功");
+
+    if (isEdit.value && selectedInterview.value) {
+      // 编辑模式：更新现有面试
+      const payload = {
+        time: interviewForm.datetime,
+        netid: interviewForm.candidate,
+        department: interviewForm.department,
+      };
+      await interviewAPI.updateInterview(selectedInterview.value.id, payload);
+      ElMessage.success("面试更新成功");
+    } else {
+      // 添加模式：创建新面试
+      const payload = {
+        time: interviewForm.datetime,
+        netid: interviewForm.candidate,
+        department: interviewForm.department,
+      };
+      await interviewAPI.createNewInterview(payload);
+      ElMessage.success("面试添加成功");
+    }
+
     await loadInterviews();
     showAddDialog.value = false;
+    isEdit.value = false;
   } catch (error: any) {
     console.error("保存失败:", error);
-    
+
     const errorMessage = handleApiError(error);
     ElMessage.error(errorMessage);
   } finally {
     saving.value = false;
+  }
+};
+
+// 编辑面试 - 打开编辑对话框
+const editInterview = () => {
+  if (!selectedInterview.value) return;
+
+  // 填充编辑表单
+  const datetime = new Date(selectedInterview.value.datetime);
+  const dateStr = datetime.toISOString().split("T")[0];
+  const timeStr = selectedInterview.value.datetime;
+
+  Object.assign(interviewForm, {
+    date: dateStr,
+    datetime: timeStr,
+    candidate: selectedInterview.value.netid, // 使用学号而不是姓名
+    department: selectedInterview.value.department,
+  });
+
+  isEdit.value = true;
+  showDetailDialog.value = false;
+  showAddDialog.value = true;
+
+  // 加载可用时间选项
+  handleInterviewDateChange(dateStr);
+};
+
+// 取消面试
+const cancelInterview = async () => {
+  if (!selectedInterview.value) return;
+
+  try {
+    await ElMessageBox.confirm(
+      "确定要取消这个面试吗？此操作不可恢复。",
+      "确认取消",
+      {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }
+    );
+
+    deleting.value = true;
+    await interviewAPI.deleteInterview(selectedInterview.value.id);
+    ElMessage.success("面试已取消");
+    await loadInterviews();
+    showDetailDialog.value = false;
+  } catch (error: any) {
+    if (error !== "cancel") {
+      console.error("取消面试失败:", error);
+      const errorMessage = handleApiError(error);
+      ElMessage.error(`取消面试失败: ${errorMessage}`);
+    }
+  } finally {
+    deleting.value = false;
   }
 };
 
@@ -822,6 +904,7 @@ const fetchInterviewsByDate = async (date: string) => {
                 id: interview.id,
                 title: `面试-${name || interview.netid || "未知学生"}`,
                 candidate: name || interview.netid || "未知学生",
+                netid: interview.netid || "",
                 datetime: interview.time,
                 interviewer: interview.interviewer || "面试官",
                 department: interview.department || "未知部门",
@@ -869,15 +952,23 @@ const getStudent = async (netid: string): Promise<string | null> => {
 // 计算面试在单元格内的绝对定位样式（30分钟一格，支持分钟精度）
 function getInterviewStartRow(datetime: string) {
   const date = new Date(datetime);
-  // 8:00为第0行
-  let row = date.getMinutes() / 60;
-  return row;
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+
+  // 8:00为第0行，每小时一行
+  if (hours < 8) {
+    return 0; // 如果时间早于8:00，放在第一行
+  }
+
+  const rowFromHours = hours - 8; // 8:00开始计算
+  const rowFromMinutes = minutes / 60; // 分钟转换为小数部分
+  return rowFromHours + rowFromMinutes;
 }
 function getInterviewItemStyle(datetime: string): CSSProperties {
   const startRow = getInterviewStartRow(datetime);
-  const rowHeight = 60;
+  const rowHeight = 120;
   const top = startRow * rowHeight;
-  const height = rowHeight / 2;
+  const height = 30;
   return {
     position: "absolute",
     left: "4px",
@@ -927,6 +1018,7 @@ const loadMockData = () => {
       id: 1,
       title: "技术面试",
       candidate: "张三",
+      netid: "2251234567",
       datetime: "2025-07-07 09:00:00",
       interviewer: "李老师",
       department: "tech",
@@ -937,6 +1029,7 @@ const loadMockData = () => {
       id: 2,
       title: "美工面试",
       candidate: "王五",
+      netid: "2251234568",
       datetime: "2025-07-07 10:00:00",
       interviewer: "赵老师",
       department: "art",
@@ -947,6 +1040,7 @@ const loadMockData = () => {
       id: 3,
       title: "视频面试",
       candidate: "刘七",
+      netid: "2251234569",
       datetime: "2025-07-07 13:00:00",
       interviewer: "陈老师",
       department: "video",
@@ -1067,6 +1161,7 @@ onMounted(async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .schedule-header-grid {
@@ -1109,6 +1204,7 @@ onMounted(async () => {
 .schedule-body {
   flex: 1;
   overflow-y: auto;
+  height: 0;
 }
 
 .time-row {
@@ -1122,7 +1218,7 @@ onMounted(async () => {
   color: #9aa0a6;
   background: white;
   text-align: center;
-  min-height: 60px;
+  min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1130,28 +1226,23 @@ onMounted(async () => {
 
 .schedule-cell {
   padding: 4px;
-  min-height: 60px;
+  min-height: 120px;
   border-top: 1px solid #f3f4f6;
   cursor: pointer;
   transition: background-color 0.2s;
   position: relative;
-  top: 50%;
 }
 
 /* 绝对定位的日程表列布局 */
-.schedule-body {
-  position: relative;
-  min-height: 600px;
-}
 .time-rows-absolute {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   position: relative;
-  min-height: 600px;
+  min-height: 2040px;
 }
 .schedule-day-col {
   position: relative;
-  min-height: 600px;
+  min-height: 2040px;
 }
 
 .interview-item {
@@ -1362,6 +1453,10 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.dialog-footer .el-button--danger {
+  margin-left: auto;
 }
 
 /* 响应式布局 */

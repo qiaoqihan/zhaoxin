@@ -138,6 +138,21 @@ export const studentAPI = {
 
   // 获取学生统计数据
   getStatistics: () => axios.get("/api/admin/stat"),
+
+  // 更新学生信息
+  updateStudent: (id: number, data: any) => {
+    const requestData = {
+      netid: data.netid,
+      name: data.name,
+      phone: data.phone,
+      school: data.school,
+      mastered: data.mastered,
+      tomaster: data.tomaster,
+      depart: data.depart,
+      queid: data.queid || 0,
+    };
+    return axios.put(`/api/admin/stu${id}`, requestData);
+  },
 };
 
 export const interviewAPI = {
@@ -153,7 +168,7 @@ export const interviewAPI = {
 
   // 删除面试安排
   deleteInterview: (id: number) =>
-    axios.delete("/api/interv", { data: { id } }),
+    axios.delete("/api/interv", { data: { id: [id] } }),
 
   // 获取面试统计数据
   getStatistics: () => axios.get("/api/admin/stat"),
