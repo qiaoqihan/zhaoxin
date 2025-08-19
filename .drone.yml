@@ -12,6 +12,9 @@ steps:
     volumes:
       - name: node_module
         path: /root/.npm
+    environment:
+      NODE_ENV: production
+
 
   - name: deploy
     image: alpine

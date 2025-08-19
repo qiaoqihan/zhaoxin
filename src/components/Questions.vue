@@ -60,15 +60,27 @@
       <div class="questions-right">
         <el-card class="right-card">
           <div v-if="selectedQuestion" class="question-detail-content">
-            <!-- 图片部分 - 仅在有图片时显示 -->
+            <!-- 媒体文件部分 - 仅在有图片或视频时显示 -->
             <div v-if="selectedQuestion.url" class="detail-section">
-              <div class="image-section">
-                <div class="question-image-container">
+              <div class="media-section">
+                <div class="question-media-container">
+                  <!-- 如果是视频文件 -->
+                  <video
+                    v-if="isVideoFile(selectedQuestion.url)"
+                    :src="selectedQuestion.url"
+                    class="question-video"
+                    controls
+                    @error="handleMediaError"
+                  >
+                    您的浏览器不支持视频播放
+                  </video>
+                  <!-- 如果是图片文件 -->
                   <img
+                    v-else
                     :src="selectedQuestion.url"
                     :alt="selectedQuestion.title"
                     class="question-image"
-                    @error="handleImageError"
+                    @error="handleMediaError"
                   />
                 </div>
               </div>
@@ -153,6 +165,7 @@
       :title="isEdit ? '编辑题目' : '添加题目'"
       width="800px"
       :close-on-click-modal="false"
+      @close="handleDialogClose"
     >
       <el-form
         :model="questionForm"
@@ -179,29 +192,42 @@
             placeholder="请输入题目内容"
           />
         </el-form-item>
-        <el-form-item label="题目图片" prop="url">
+        <el-form-item label="媒体文件" prop="url">
           <el-upload
-            class="image-uploader"
+            ref="uploadRef"
+            class="media-uploader"
             action="#"
             :show-file-list="false"
-            :before-upload="beforeImageUpload"
-            :http-request="handleImageUpload"
+            :before-upload="beforeMediaUpload"
+            :http-request="handleMediaUpload"
+            :on-exceed="handleExceed"
             :auto-upload="true"
             :limit="1"
-            accept="image/jpeg,image/jpg,image/png,image/gif"
+            accept="image/jpeg,image/jpg,image/png,image/gif,video/mp4,video/webm,video/ogg,video/avi,video/mov"
           >
+            <!-- 视频预览 -->
+            <video
+              v-if="questionForm.url && isVideoFile(questionForm.url)"
+              :src="questionForm.url"
+              class="uploaded-video"
+              controls
+            >
+              您的浏览器不支持视频播放
+            </video>
+            <!-- 图片预览 -->
             <img
-              v-if="questionForm.url"
+              v-else-if="questionForm.url && !isVideoFile(questionForm.url)"
               :src="questionForm.url"
               class="uploaded-image"
             />
+            <!-- 上传占位符 -->
             <div v-else class="upload-placeholder">
               <el-icon class="upload-icon"><Plus /></el-icon>
-              <div class="upload-text">点击选择图片</div>
+              <div class="upload-text">点击选择图片或视频</div>
             </div>
           </el-upload>
           <div class="upload-tips">
-            支持 JPG、PNG、GIF 格式，文件大小不超过 2MB
+            支持 JPG、PNG、GIF、MP4、WebM、OGG 等格式，文件大小不超过 10MB
           </div>
         </el-form-item>
       </el-form>
@@ -253,6 +279,7 @@ const saving = ref(false);
 const showAddDialog = ref(false);
 const isEdit = ref(false);
 const questionFormRef = ref();
+const uploadRef = ref();
 
 const searchKeyword = ref("");
 
@@ -417,7 +444,7 @@ const deleteSelectedQuestion = async () => {
 };
 
 // 防抖搜索
-let searchTimer: number;
+let searchTimer: NodeJS.Timeout;
 const debounceSearch = () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
@@ -508,33 +535,65 @@ const updateEditForm = (field: keyof typeof editForm, event: Event) => {
   }
 };
 
-// 处理图片加载错误
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement;
-  if (img) {
-    img.style.display = "none";
-    console.warn("图片加载失败:", img.src);
+// 处理媒体文件加载错误
+const handleMediaError = (event: Event) => {
+  const media = event.target as HTMLImageElement | HTMLVideoElement;
+  if (media) {
+    media.style.display = "none";
+    console.warn("媒体文件加载失败:", media.src);
   }
 };
 
-// 图片上传前的验证
-const beforeImageUpload = (file: File) => {
-  const isImage = file.type.startsWith("image/");
-  const isLt2M = file.size / 1024 / 1024 < 2;
+// 判断是否为视频文件
+const isVideoFile = (url: string): boolean => {
+  if (!url) return false;
 
-  if (!isImage) {
-    ElMessage.error("只能上传图片文件!");
+  // 检查文件扩展名
+  const videoExtensions = [
+    ".mp4",
+    ".webm",
+    ".ogg",
+    ".avi",
+    ".mov",
+    ".wmv",
+    ".flv",
+    ".mkv",
+  ];
+  const lowercaseUrl = url.toLowerCase();
+
+  // 检查是否包含视频文件扩展名
+  const hasVideoExtension = videoExtensions.some((ext) =>
+    lowercaseUrl.includes(ext)
+  );
+
+  // 检查MIME类型（如果是base64）
+  const isVideoMime = url.startsWith("data:video/");
+
+  return hasVideoExtension || isVideoMime;
+};
+
+// 处理图片加载错误（保持向后兼容）
+const handleImageError = handleMediaError;
+
+// 媒体文件上传前的验证
+const beforeMediaUpload = (file: File) => {
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  const isLt10M = file.size / 1024 / 1024 < 10;
+
+  if (!isImage && !isVideo) {
+    ElMessage.error("只能上传图片或视频文件!");
     return false;
   }
-  if (!isLt2M) {
-    ElMessage.error("图片大小不能超过 2MB!");
+  if (!isLt10M) {
+    ElMessage.error("文件大小不能超过 10MB!");
     return false;
   }
   return true;
 };
 
-// 处理图片上传
-const handleImageUpload = (options: any) => {
+// 处理媒体文件上传
+const handleMediaUpload = (options: any) => {
   return new Promise((resolve, reject) => {
     const file = options.file;
 
@@ -543,18 +602,32 @@ const handleImageUpload = (options: any) => {
     reader.onload = (e) => {
       const result = e.target?.result as string;
       questionForm.url = result;
-      ElMessage.success("图片上传成功");
+
+      const fileType = file.type.startsWith("video/") ? "视频" : "图片";
+      ElMessage.success(`${fileType}上传成功`);
+
       options.onSuccess?.(result);
       resolve(result);
     };
     reader.onerror = (error) => {
-      ElMessage.error("图片读取失败");
+      ElMessage.error("文件读取失败");
       options.onError?.(error);
       reject(error);
     };
     reader.readAsDataURL(file);
   });
 };
+
+// 上传文件数量超出限制时的处理
+const handleExceed = () => {
+  ElMessage.warning("只能上传一个文件，请先删除已上传的文件");
+};
+
+// 图片上传前的验证（保持向后兼容）
+const beforeImageUpload = beforeMediaUpload;
+
+// 处理图片上传（保持向后兼容）
+const handleImageUpload = handleMediaUpload;
 
 // 保存题目
 const saveQuestion = async () => {
@@ -635,7 +708,25 @@ const resetForm = () => {
   });
   isEdit.value = false;
   showAddDialog.value = false;
-  questionFormRef.value?.resetFields();
+
+  if (questionFormRef.value) {
+    questionFormRef.value.resetFields();
+    questionFormRef.value.clearValidate();
+  }
+
+  // 清除上传组件的状态
+  if (uploadRef.value) {
+    uploadRef.value.clearFiles?.();
+    uploadRef.value.$refs?.uploadInner?.$refs?.input?.setAttribute("value", "");
+  }
+};
+
+// 对话框关闭处理
+const handleDialogClose = () => {
+  // 延迟执行重置，确保对话框完全关闭后再重置
+  setTimeout(() => {
+    resetForm();
+  }, 100);
 };
 
 onMounted(() => {
@@ -899,14 +990,14 @@ onMounted(() => {
   gap: 8px;
 }
 
-.image-section {
+.media-section {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.question-image-container {
+.question-media-container {
   width: 80%;
   max-width: 80%;
   height: 35vh;
@@ -920,7 +1011,8 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.question-image {
+.question-image,
+.question-video {
   width: 100%;
   height: 100%;
   max-width: 100%;
@@ -928,6 +1020,10 @@ onMounted(() => {
   border-radius: 8px;
   object-fit: contain;
   transition: all 0.3s ease;
+}
+
+.question-video {
+  background: #000;
 }
 
 .question-stats {
@@ -1146,6 +1242,7 @@ onMounted(() => {
   outline: none;
 }
 
+/* 保持向后兼容的样式类名 */
 .image-uploader {
   border: 1px dashed #d9d9d9;
   border-radius: 8px;
@@ -1159,11 +1256,16 @@ onMounted(() => {
   border-color: #409eff;
 }
 
-.uploaded-image {
+.uploaded-image,
+.uploaded-video {
   width: 200px;
   height: 150px;
   object-fit: cover;
   display: block;
+}
+
+.uploaded-video {
+  background: #000;
 }
 
 .upload-placeholder {
