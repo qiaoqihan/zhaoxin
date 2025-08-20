@@ -695,12 +695,13 @@ const dailyInterviews = computed(() => {
           interv: interview,
         };
       }
-      // 如果没有找到学生信息，创建一个基本的学生对象
+      // 如果没有找到学生信息，创建一个更完整的基本学生对象
+      // 注意：这里使用面试数据中的信息来填补空缺
       return {
         id: interview.id,
         openid: "",
         netid: interview.netid || "",
-        name: interview.netid || "未知",
+        name: interview.netid || "未知", // 使用netid作为默认名称
         phone: "",
         school: "",
         whereknow: "",
@@ -711,6 +712,8 @@ const dailyInterviews = computed(() => {
         interv: interview,
         message: 0,
         queid: 0,
+        questionContent: "", // 添加缺失的字段
+        questionUrl: "", // 添加缺失的字段
       };
     })
     .sort((a, b) => {
@@ -1013,7 +1016,31 @@ const handleRowClick = (row: Student) => {
 };
 
 const editStudent = async (student: Student) => {
-  editingStudent.value = JSON.parse(JSON.stringify(student));
+  // 检查学生信息是否完整，如果不完整则尝试获取完整信息
+  let completeStudent = student;
+  
+  // 如果学生信息看起来不完整（比如缺少基本字段），尝试从后端获取
+  if (!student.phone || !student.school || student.name === student.netid) {
+    console.log('学生信息不完整，尝试获取完整信息:', student);
+    try {
+      // 通过netid获取完整的学生信息
+      const response = await studentAPI.getStudents({ netid: student.netid, limit: 1 });
+      if (response.data?.success && response.data.data?.data?.length > 0) {
+        const fetchedStudent = response.data.data.data[0];
+        // 合并面试信息到获取的完整学生信息中
+        completeStudent = {
+          ...fetchedStudent,
+          interv: student.interv, // 保持原有的面试信息
+        };
+        console.log('获取到完整学生信息:', completeStudent);
+      }
+    } catch (error) {
+      console.error('获取完整学生信息失败:', error);
+      // 如果获取失败，继续使用原有的学生信息
+    }
+  }
+
+  editingStudent.value = JSON.parse(JSON.stringify(completeStudent));
 
   // 如果学生有题目ID，获取题目内容
   if (
