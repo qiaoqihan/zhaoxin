@@ -136,6 +136,9 @@ export const studentAPI = {
   // 获取学生列表
   getStudents: (params?: any) => axios.get("/api/admin/stu", { params }),
 
+  // 获取单个学生详情 (使用现有接口通过netid参数获取)
+  getStudentDetail: (netid: string) => axios.get("/api/admin/stu", { params: { netid } }),
+
   // 获取学生统计数据
   getStatistics: () => axios.get("/api/admin/stat"),
 

@@ -185,7 +185,7 @@
     </div>
 
     <!-- 面试详情对话框 -->
-    <el-dialog v-model="showDetailDialog" title="面试详情" width="600px">
+    <el-dialog v-model="showDetailDialog" title="面试详情" width="800px">
       <div v-if="selectedInterview" class="interview-detail">
         <el-descriptions :column="1" border>
           <el-descriptions-item label="候选人">
@@ -204,6 +204,92 @@
             {{ selectedInterview.notes || "无" }}
           </el-descriptions-item>
         </el-descriptions>
+        
+        <!-- 学生详细信息 -->
+        <div class="student-detail-section" style="margin-top: 20px;">
+          <el-divider>学生详细信息</el-divider>
+          <el-loading v-loading="loadingStudentDetail">
+            <div v-if="studentDetail" class="student-info">
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="学号">
+                  {{ studentDetail.netid }}
+                </el-descriptions-item>
+                <el-descriptions-item label="姓名">
+                  {{ studentDetail.name }}
+                </el-descriptions-item>
+                <el-descriptions-item label="电话">
+                  {{ studentDetail.phone }}
+                </el-descriptions-item>
+                <el-descriptions-item label="书院">
+                  {{ studentDetail.school }}
+                </el-descriptions-item>
+                <el-descriptions-item label="已掌握技能" span="2">
+                  {{ studentDetail.mastered }}
+                </el-descriptions-item>
+                <el-descriptions-item label="想掌握技能" span="2">
+                  {{ studentDetail.tomaster }}
+                </el-descriptions-item>
+              </el-descriptions>
+              
+              <!-- 抽到的题目 -->
+              <div v-if="studentDetail.queid && studentDetail.queid > 0" class="question-section" style="margin-top: 16px;">
+                <el-divider>面试题目</el-divider>
+                <div class="question-content">
+                  <div v-if="studentDetail.questionContent" class="markdown-content">
+                    <div v-html="renderMarkdown(studentDetail.questionContent)"></div>
+                  </div>
+                  <div v-else class="no-question">
+                    题目ID: {{ studentDetail.queid }} (题目内容获取失败)
+                  </div>
+                  
+                  <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
+                  <div v-if="studentDetail.questionUrl" class="question-media" style="margin-top: 12px;">
+                    <!-- 图片显示 -->
+                    <img 
+                      v-if="isImageUrl(studentDetail.questionUrl)" 
+                      :src="studentDetail.questionUrl" 
+                      :alt="'题目图片'" 
+                      class="question-image"
+                      @error="handleMediaError"
+                    />
+                    <!-- 视频显示 -->
+                    <video 
+                      v-else-if="isVideoUrl(studentDetail.questionUrl)" 
+                      :src="studentDetail.questionUrl" 
+                      controls 
+                      class="question-video"
+                      @error="handleMediaError"
+                    >
+                      您的浏览器不支持视频播放
+                    </video>
+                    <!-- 其他链接显示为可点击链接 -->
+                    <div v-else class="question-link">
+                      <el-link :href="studentDetail.questionUrl" target="_blank" type="primary">
+                        查看题目附件/链接
+                      </el-link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-else class="no-question" style="margin-top: 16px;">
+                <el-alert
+                  title="该学生尚未抽取题目"
+                  type="info"
+                  :closable="false">
+                </el-alert>
+              </div>
+            </div>
+            
+            <div v-else-if="!loadingStudentDetail" class="no-student-detail">
+              <el-alert
+                title="无法获取学生详细信息"
+                type="warning"
+                :closable="false">
+              </el-alert>
+            </div>
+          </el-loading>
+        </div>
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -353,9 +439,24 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
-import { interviewAPI, studentAPI, handleApiError } from "../api";
+import { interviewAPI, studentAPI, handleApiError, questionAPI } from "../api";
 import AddIcon from "../assets/Linear - Essentional, UI - Add Circle.svg";
 import type { CSSProperties } from "vue";
+import { marked } from "marked";
+import hljs from "highlight.js/lib/core";
+import javascript from "highlight.js/lib/languages/javascript";
+import python from "highlight.js/lib/languages/python";
+import "highlight.js/styles/github.css";
+
+// 注册语言
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('python', python);
+
+// 配置marked
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 // 数据类型定义
 interface Interview {
@@ -386,6 +487,20 @@ interface ScheduleInterview {
   notes?: string;
 }
 
+interface StudentDetail {
+  id: number;
+  netid: string;
+  name: string;
+  phone: string;
+  school: string;
+  mastered: string;
+  tomaster: string;
+  depart: string;
+  queid: number;
+  questionContent?: string;
+  questionUrl?: string;
+}
+
 // 响应式数据
 const loading = ref(false);
 const saving = ref(false);
@@ -407,6 +522,8 @@ const savingTime = ref(false);
 const currentWeek = ref(new Date());
 const currentMonth = ref(new Date());
 const selectedInterview = ref<ScheduleInterview | null>(null);
+const studentDetail = ref<StudentDetail | null>(null);
+const loadingStudentDetail = ref(false);
 const interviews = ref<ScheduleInterview[]>([]);
 const interviewDates = ref<InterviewDateInfo[]>([]);
 
@@ -729,9 +846,125 @@ const handleCellClick = (date: string, time: string) => {
   showAddDialog.value = true;
 };
 
-const showInterviewDetail = (interview: ScheduleInterview) => {
+const showInterviewDetail = async (interview: ScheduleInterview) => {
   selectedInterview.value = interview;
+  studentDetail.value = null;
   showDetailDialog.value = true;
+  
+  // 获取学生详情
+  if (interview.netid) {
+    await fetchStudentDetail(interview.netid);
+  }
+};
+
+// 获取学生详情
+const fetchStudentDetail = async (netid: string) => {
+  try {
+    loadingStudentDetail.value = true;
+    const response = await studentAPI.getStudentDetail(netid);
+    
+    if (response.data && response.data.success && response.data.data && response.data.data.length > 0) {
+      const student = response.data.data[0]; // 取第一个学生对象
+      studentDetail.value = {
+        id: student.id,
+        netid: student.netid,
+        name: student.name,
+        phone: student.phone,
+        school: student.school,
+        mastered: student.mastered,
+        tomaster: student.tomaster,
+        depart: student.depart,
+        queid: student.queid || 0,
+      };
+      
+      // 如果学生有题目ID，获取题目内容
+      if (student.queid && student.queid > 0) {
+        await fetchQuestionDetail(student.queid);
+      }
+    }
+  } catch (error) {
+    console.error("获取学生详情失败:", error);
+    ElMessage.error("获取学生详情失败: " + handleApiError(error));
+  } finally {
+    loadingStudentDetail.value = false;
+  }
+};
+
+// 获取题目详情
+const fetchQuestionDetail = async (questionId: number) => {
+  try {
+    // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
+    const response = await questionAPI.getQuestions();
+    
+    if (response.data && response.data.success && response.data.data) {
+      // 检查不同的数据结构
+      let questions = null;
+      
+      if (response.data.data.questions) {
+        questions = response.data.data.questions;
+      } else if (Array.isArray(response.data.data)) {
+        questions = response.data.data;
+      } else if (response.data.data.Data) {
+        questions = response.data.data.Data;
+      }
+      
+      if (questions && Array.isArray(questions)) {
+        const question = questions.find((q: any) => q.id === questionId);
+        
+        if (question && studentDetail.value) {
+          studentDetail.value.questionContent = question.question;
+          studentDetail.value.questionUrl = question.url;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("获取题目详情失败:", error);
+  }
+};
+
+// 渲染markdown内容
+const renderMarkdown = (content: string): string => {
+  if (!content) return '';
+  try {
+    return marked(content) as string;
+  } catch (error) {
+    console.error('Markdown渲染失败:', error);
+    return content;
+  }
+};
+
+// 判断是否为图片URL
+const isImageUrl = (url: string): boolean => {
+  if (!url) return false;
+  
+  // 检查base64数据URL
+  if (url.startsWith('data:image/')) {
+    return true;
+  }
+  
+  // 检查文件扩展名
+  const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
+  return imageExtensions.test(url);
+};
+
+// 判断是否为视频URL
+const isVideoUrl = (url: string): boolean => {
+  if (!url) return false;
+  
+  // 检查base64数据URL
+  if (url.startsWith('data:video/')) {
+    return true;
+  }
+  
+  // 检查文件扩展名
+  const videoExtensions = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/i;
+  return videoExtensions.test(url);
+};
+
+// 处理媒体加载错误
+const handleMediaError = (event: Event) => {
+  console.error('媒体加载失败:', event);
+  ElMessage.warning('媒体文件加载失败');
 };
 
 const saveInterview = async () => {
@@ -1459,6 +1692,136 @@ onMounted(async () => {
   margin-left: auto;
 }
 
+/* 学生详情样式 */
+.student-detail-section {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.student-info .el-descriptions {
+  margin-bottom: 0;
+}
+
+.question-section {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #fafafa;
+}
+
+.question-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.markdown-content {
+  line-height: 1.6;
+  color: #303133;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-content h1 { font-size: 1.5em; }
+.markdown-content h2 { font-size: 1.3em; }
+.markdown-content h3 { font-size: 1.1em; }
+
+.markdown-content p {
+  margin: 0.8em 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.8em 0;
+  padding-left: 2em;
+}
+
+.markdown-content li {
+  margin: 0.2em 0;
+}
+
+.markdown-content code {
+  background-color: #f1f2f6;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  background-color: #f8f8f8;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #dfe2e5;
+  padding-left: 16px;
+  margin: 1em 0;
+  color: #6a737d;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #dfe2e5;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 0.5em 0;
+}
+
+.markdown-content video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 0.5em 0;
+}
+
+.no-question {
+  text-align: center;
+  color: #909399;
+  font-style: italic;
+}
+
+.question-url {
+  text-align: right;
+  padding-top: 8px;
+  border-top: 1px solid #e4e7ed;
+}
+
 /* 响应式布局 */
 @media (max-width: 1200px) {
   .main-layout {
@@ -1483,6 +1846,186 @@ onMounted(async () => {
 /* 滚动条样式 */
 .schedule-body::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
+}
+
+.schedule-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.schedule-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.schedule-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Markdown 内容样式 */
+.markdown-content {
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+  max-height: 400px;
+  overflow-y: auto;
+  line-height: 1.6;
+  color: #24292e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #1f2937;
+}
+
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+  margin-top: 0;
+}
+
+.markdown-content h1 { 
+  font-size: 1.5em; 
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 8px;
+}
+.markdown-content h2 { 
+  font-size: 1.3em; 
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 6px;
+}
+.markdown-content h3 { font-size: 1.1em; }
+
+.markdown-content p {
+  margin-bottom: 16px;
+  color: #374151;
+}
+
+.markdown-content ul, 
+.markdown-content ol {
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.markdown-content li {
+  margin-bottom: 4px;
+}
+
+.markdown-content code {
+  padding: 2px 4px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875em;
+  color: #d73a49;
+}
+
+.markdown-content pre {
+  padding: 16px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  border: 1px solid #e1e4e8;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875em;
+}
+
+.markdown-content blockquote {
+  margin: 16px 0;
+  padding-left: 16px;
+  border-left: 4px solid #d1d5db;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 8px 12px;
+  border: 1px solid #e1e4e8;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.question-section {
+  margin-top: 20px;
+}
+
+.question-content {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e1e4e8;
+}
+
+.question-url {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-top: 1px solid #e1e4e8;
+}
+
+.no-question {
+  padding: 16px;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.student-detail-section {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.student-info .el-descriptions {
+  margin-bottom: 16px;
 }
 
 .schedule-body::-webkit-scrollbar-track {
@@ -1500,5 +2043,164 @@ onMounted(async () => {
 
 :deep(.el-card) {
   box-shadow: none !important;
+}
+
+/* 学生详情和题目显示样式 */
+.student-detail-section {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.student-info .question-section {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.question-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.markdown-content {
+  line-height: 1.6;
+  color: #333;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin: 16px 0 8px 0;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.markdown-content :deep(h1) { font-size: 1.8em; }
+.markdown-content :deep(h2) { font-size: 1.5em; }
+.markdown-content :deep(h3) { font-size: 1.3em; }
+
+.markdown-content :deep(p) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 4px 0;
+}
+
+.markdown-content :deep(blockquote) {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-left: 4px solid #007bff;
+  font-style: italic;
+}
+
+.markdown-content :deep(code) {
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #f8f8f8;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(video) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(table th),
+.markdown-content :deep(table td) {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-content :deep(table th) {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+.no-question {
+  color: #666;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+.question-url {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* 题目媒体显示样式 */
+.question-media {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.question-image {
+  max-width: 100%;
+  max-height: 400px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.question-image:hover {
+  transform: scale(1.02);
+}
+
+.question-video {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.question-link {
+  text-align: center;
 }
 </style>

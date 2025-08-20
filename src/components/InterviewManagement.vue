@@ -265,6 +265,57 @@
               </el-form-item>
             </el-card>
 
+            <!-- 面试题目 -->
+            <el-card class="form-section" shadow="never">
+              <template #header>
+                <div class="section-header">面试题目</div>
+              </template>
+              <div v-if="editingStudent.queid && editingStudent.queid > 0" class="question-content">
+                <div v-if="editingStudent.questionContent" class="markdown-content">
+                  <div v-html="renderMarkdown(editingStudent.questionContent)"></div>
+                </div>
+                <div v-else class="no-question">
+                  题目ID: {{ editingStudent.queid }} (题目内容获取中...)
+                </div>
+                
+                <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
+                <div v-if="editingStudent.questionUrl" class="question-media" style="margin-top: 12px;">
+                  <!-- 图片显示 -->
+                  <img 
+                    v-if="isImageUrl(editingStudent.questionUrl)" 
+                    :src="editingStudent.questionUrl" 
+                    :alt="'题目图片'" 
+                    class="question-image"
+                    @error="handleMediaError"
+                  />
+                  <!-- 视频显示 -->
+                  <video 
+                    v-else-if="isVideoUrl(editingStudent.questionUrl)" 
+                    :src="editingStudent.questionUrl" 
+                    controls 
+                    class="question-video"
+                    @error="handleMediaError"
+                  >
+                    您的浏览器不支持视频播放
+                  </video>
+                  <!-- 其他链接显示为可点击链接 -->
+                  <div v-else class="question-link">
+                    <el-link :href="editingStudent.questionUrl" target="_blank" type="primary">
+                      查看题目附件/链接
+                    </el-link>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-else class="no-question">
+                <el-alert
+                  title="该学生尚未抽取题目"
+                  type="info"
+                  :closable="false">
+                </el-alert>
+              </div>
+            </el-card>
+
             <div class="form-actions">
               <el-button @click="closeEdit">取消</el-button>
               <el-button type="primary" @click="saveStudent" :loading="saving">
@@ -389,11 +440,26 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { MoreFilled } from "@element-plus/icons-vue";
-import { studentAPI, interviewAPI, handleApiError } from "../api";
+import { studentAPI, interviewAPI, handleApiError, questionAPI } from "../api";
 import CloseIcon from "../assets/Outline - Essentional, UI - Close Circle.svg";
 import ArrowLeftIcon from "../assets/Outline - Arrows - Alt Arrow Left.svg";
 import ArrowRightIcon from "../assets/Outline - Arrows - Alt Arrow Right.svg";
 import More from "../assets/More.svg";
+import { marked } from "marked";
+import hljs from "highlight.js/lib/core";
+import javascript from "highlight.js/lib/languages/javascript";
+import python from "highlight.js/lib/languages/python";
+import "highlight.js/styles/github.css";
+
+// 注册语言
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('python', python);
+
+// 配置marked
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 // 数据类型定义
 interface Student {
@@ -411,6 +477,8 @@ interface Student {
   interv?: Interview;
   message: number;
   queid?: number;
+  questionContent?: string;
+  questionUrl?: string;
 }
 
 interface Interview {
@@ -762,12 +830,94 @@ const handleRowClick = (row: Student) => {
   editStudent(row);
 };
 
-const editStudent = (student: Student) => {
+const editStudent = async (student: Student) => {
   editingStudent.value = JSON.parse(JSON.stringify(student));
+  
+  // 如果学生有题目ID，获取题目内容
+  if (editingStudent.value && editingStudent.value.queid && editingStudent.value.queid > 0) {
+    await fetchQuestionDetail(editingStudent.value.queid);
+  }
 };
 
 const closeEdit = () => {
   editingStudent.value = null;
+};
+
+// 获取题目详情
+const fetchQuestionDetail = async (questionId: number) => {
+  try {
+    // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
+    const response = await questionAPI.getQuestions();
+    
+    if (response.data && response.data.success && response.data.data) {
+      // 检查不同的数据结构
+      let questions = null;
+      
+      if (response.data.data.questions) {
+        questions = response.data.data.questions;
+      } else if (Array.isArray(response.data.data)) {
+        questions = response.data.data;
+      } else if (response.data.data.Data) {
+        questions = response.data.data.Data;
+      }
+      
+      if (questions && Array.isArray(questions)) {
+        const question = questions.find((q: any) => q.id === questionId);
+        
+        if (question && editingStudent.value) {
+          editingStudent.value.questionContent = question.question;
+          editingStudent.value.questionUrl = question.url;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("获取题目详情失败:", error);
+  }
+};
+
+// 渲染markdown内容
+const renderMarkdown = (content: string): string => {
+  if (!content) return '';
+  try {
+    return marked(content) as string;
+  } catch (error) {
+    console.error('Markdown渲染失败:', error);
+    return content;
+  }
+};
+
+// 判断是否为图片URL
+const isImageUrl = (url: string): boolean => {
+  if (!url) return false;
+  
+  // 检查base64数据URL
+  if (url.startsWith('data:image/')) {
+    return true;
+  }
+  
+  // 检查文件扩展名
+  const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
+  return imageExtensions.test(url);
+};
+
+// 判断是否为视频URL
+const isVideoUrl = (url: string): boolean => {
+  if (!url) return false;
+  
+  // 检查base64数据URL
+  if (url.startsWith('data:video/')) {
+    return true;
+  }
+  
+  // 检查文件扩展名
+  const videoExtensions = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/i;
+  return videoExtensions.test(url);
+};
+
+// 处理媒体加载错误
+const handleMediaError = (event: Event) => {
+  console.error('媒体加载失败:', event);
+  ElMessage.warning('媒体文件加载失败');
 };
 
 const saveStudent = async () => {
@@ -1750,5 +1900,156 @@ onMounted(async () => {
 :deep(.el-card) {
   box-shadow: none !important;
   border: none;
+}
+
+/* 题目显示样式 */
+.question-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.markdown-content {
+  line-height: 1.6;
+  color: #333;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin: 16px 0 8px 0;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.markdown-content :deep(h1) { font-size: 1.8em; }
+.markdown-content :deep(h2) { font-size: 1.5em; }
+.markdown-content :deep(h3) { font-size: 1.3em; }
+
+.markdown-content :deep(p) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 4px 0;
+}
+
+.markdown-content :deep(blockquote) {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-left: 4px solid #007bff;
+  font-style: italic;
+}
+
+.markdown-content :deep(code) {
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #f8f8f8;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(video) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(table th),
+.markdown-content :deep(table td) {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-content :deep(table th) {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+.no-question {
+  color: #666;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+.question-url {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* 题目媒体显示样式 */
+.question-media {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.question-image {
+  max-width: 100%;
+  max-height: 400px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.question-image:hover {
+  transform: scale(1.02);
+}
+
+.question-video {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.question-link {
+  text-align: center;
 }
 </style>
