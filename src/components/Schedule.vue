@@ -53,11 +53,20 @@
               class="schedule-cell"
               @click="handleCellClick(day.date, timeSlot.time)"
             >
+              <!-- 时间格子内容，用于点击事件，面试项将通过绝对定位在外层显示 -->
+            </div>
+          </div>
+
+          <!-- 面试项容器 - 使用绝对定位覆盖在时间格子上 -->
+          <div class="interviews-overlay">
+            <div
+              v-for="day in weekDays"
+              :key="`overlay-${day.date}`"
+              class="day-column"
+              :style="getDayColumnStyle(day.date)"
+            >
               <div
-                v-for="interview in getInterviewsForSlot(
-                  day.date,
-                  timeSlot.time
-                )"
+                v-for="interview in getInterviewsForDate(day.date)"
                 :key="interview.id"
                 class="interview-item interview-bg"
                 :class="[
@@ -204,9 +213,9 @@
             {{ selectedInterview.notes || "无" }}
           </el-descriptions-item>
         </el-descriptions>
-        
+
         <!-- 学生详细信息 -->
-        <div class="student-detail-section" style="margin-top: 20px;">
+        <div class="student-detail-section" style="margin-top: 20px">
           <el-divider>学生详细信息</el-divider>
           <el-loading v-loading="loadingStudentDetail">
             <div v-if="studentDetail" class="student-info">
@@ -230,33 +239,46 @@
                   {{ studentDetail.tomaster }}
                 </el-descriptions-item>
               </el-descriptions>
-              
+
               <!-- 抽到的题目 -->
-              <div v-if="studentDetail.queid && studentDetail.queid > 0" class="question-section" style="margin-top: 16px;">
+              <div
+                v-if="studentDetail.queid && studentDetail.queid > 0"
+                class="question-section"
+                style="margin-top: 16px"
+              >
                 <el-divider>面试题目</el-divider>
                 <div class="question-content">
-                  <div v-if="studentDetail.questionContent" class="markdown-content">
-                    <div v-html="renderMarkdown(studentDetail.questionContent)"></div>
+                  <div
+                    v-if="studentDetail.questionContent"
+                    class="markdown-content"
+                  >
+                    <div
+                      v-html="renderMarkdown(studentDetail.questionContent)"
+                    ></div>
                   </div>
                   <div v-else class="no-question">
                     题目ID: {{ studentDetail.queid }} (题目内容获取失败)
                   </div>
-                  
+
                   <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
-                  <div v-if="studentDetail.questionUrl" class="question-media" style="margin-top: 12px;">
+                  <div
+                    v-if="studentDetail.questionUrl"
+                    class="question-media"
+                    style="margin-top: 12px"
+                  >
                     <!-- 图片显示 -->
-                    <img 
-                      v-if="isImageUrl(studentDetail.questionUrl)" 
-                      :src="studentDetail.questionUrl" 
-                      :alt="'题目图片'" 
+                    <img
+                      v-if="isImageUrl(studentDetail.questionUrl)"
+                      :src="studentDetail.questionUrl"
+                      :alt="'题目图片'"
                       class="question-image"
                       @error="handleMediaError"
                     />
                     <!-- 视频显示 -->
-                    <video 
-                      v-else-if="isVideoUrl(studentDetail.questionUrl)" 
-                      :src="studentDetail.questionUrl" 
-                      controls 
+                    <video
+                      v-else-if="isVideoUrl(studentDetail.questionUrl)"
+                      :src="studentDetail.questionUrl"
+                      controls
                       class="question-video"
                       @error="handleMediaError"
                     >
@@ -264,28 +286,34 @@
                     </video>
                     <!-- 其他链接显示为可点击链接 -->
                     <div v-else class="question-link">
-                      <el-link :href="studentDetail.questionUrl" target="_blank" type="primary">
+                      <el-link
+                        :href="studentDetail.questionUrl"
+                        target="_blank"
+                        type="primary"
+                      >
                         查看题目附件/链接
                       </el-link>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div v-else class="no-question" style="margin-top: 16px;">
+
+              <div v-else class="no-question" style="margin-top: 16px">
                 <el-alert
                   title="该学生尚未抽取题目"
                   type="info"
-                  :closable="false">
+                  :closable="false"
+                >
                 </el-alert>
               </div>
             </div>
-            
+
             <div v-else-if="!loadingStudentDetail" class="no-student-detail">
               <el-alert
                 title="无法获取学生详细信息"
                 type="warning"
-                :closable="false">
+                :closable="false"
+              >
               </el-alert>
             </div>
           </el-loading>
@@ -449,8 +477,8 @@ import python from "highlight.js/lib/languages/python";
 import "highlight.js/styles/github.css";
 
 // 注册语言
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('python', python);
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("python", python);
 
 // 配置marked
 marked.setOptions({
@@ -580,8 +608,10 @@ const handleInterviewDateChange = async (date: string) => {
       available.forEach((item: any) => {
         allTimes.push({ time: item.time, disabled: false });
       });
+      // 只处理已被预约的面试（netid不为空）和时间临近的面试
       unavailable.forEach((item: any) => {
         if (!allTimes.some((opt) => opt.time === item.time)) {
+          // 将所有unavailable时间都标记为不可用，包括已预约和时间临近的
           allTimes.push({ time: item.time, disabled: true });
         }
       });
@@ -631,13 +661,8 @@ const timeSlots = [
 
 // 计算属性
 const currentWeekText = computed(() => {
-  // 获取当前时间
-  const now = new Date();
-  let currentDay = new Date(now);
-  if (now.getHours() < 8) {
-    currentDay.setDate(currentDay.getDate());
-  }
-  const startOfWeek = getStartOfWeek(currentDay);
+  // 使用当前显示的周期，而不是今天的日期
+  const startOfWeek = getStartOfWeek(currentWeek.value);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 6);
 
@@ -645,7 +670,7 @@ const currentWeekText = computed(() => {
   const month = startOfWeek.getMonth() + 1;
   const weekNum = getWeekNumber(startOfWeek);
 
-  return `${year}年${month}月第${weekNum}周`;
+  return `${year}年${month}月    第${weekNum}周`;
 });
 
 const currentMonthText = computed(() => {
@@ -801,6 +826,22 @@ const getInterviewsForDate = (date: string) => {
   });
 };
 
+// 获取日期列的样式
+const getDayColumnStyle = (date: string): CSSProperties => {
+  // 计算这是第几列（时间列之后的列）
+  const dayIndex = weekDays.value.findIndex((day) => day.date === date);
+  const columnWidth = `calc((100% - 100px) / 7)`; // 减去时间列的100px宽度
+  const left = `calc(100px + ${dayIndex} * ${columnWidth})`;
+
+  return {
+    position: "absolute",
+    left: left,
+    width: columnWidth,
+    top: "0",
+    height: "100%",
+  };
+};
+
 // 事件处理方法
 const previousWeek = () => {
   const newDate = new Date(currentWeek.value);
@@ -850,7 +891,7 @@ const showInterviewDetail = async (interview: ScheduleInterview) => {
   selectedInterview.value = interview;
   studentDetail.value = null;
   showDetailDialog.value = true;
-  
+
   // 获取学生详情
   if (interview.netid) {
     await fetchStudentDetail(interview.netid);
@@ -862,9 +903,15 @@ const fetchStudentDetail = async (netid: string) => {
   try {
     loadingStudentDetail.value = true;
     const response = await studentAPI.getStudentDetail(netid);
-    
-    if (response.data && response.data.success && response.data.data && response.data.data.length > 0) {
-      const student = response.data.data[0]; // 取第一个学生对象
+
+    if (
+      response.data &&
+      response.data.success &&
+      response.data.data.data &&
+      response.data.data.data.length > 0
+    ) {
+      const student = response.data.data.data[0]; // 取第一个学生对象
+
       studentDetail.value = {
         id: student.id,
         netid: student.netid,
@@ -876,7 +923,7 @@ const fetchStudentDetail = async (netid: string) => {
         depart: student.depart,
         queid: student.queid || 0,
       };
-      
+
       // 如果学生有题目ID，获取题目内容
       if (student.queid && student.queid > 0) {
         await fetchQuestionDetail(student.queid);
@@ -895,11 +942,11 @@ const fetchQuestionDetail = async (questionId: number) => {
   try {
     // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
     const response = await questionAPI.getQuestions();
-    
+
     if (response.data && response.data.success && response.data.data) {
       // 检查不同的数据结构
       let questions = null;
-      
+
       if (response.data.data.questions) {
         questions = response.data.data.questions;
       } else if (Array.isArray(response.data.data)) {
@@ -907,10 +954,10 @@ const fetchQuestionDetail = async (questionId: number) => {
       } else if (response.data.data.Data) {
         questions = response.data.data.Data;
       }
-      
+
       if (questions && Array.isArray(questions)) {
         const question = questions.find((q: any) => q.id === questionId);
-        
+
         if (question && studentDetail.value) {
           studentDetail.value.questionContent = question.question;
           studentDetail.value.questionUrl = question.url;
@@ -924,11 +971,11 @@ const fetchQuestionDetail = async (questionId: number) => {
 
 // 渲染markdown内容
 const renderMarkdown = (content: string): string => {
-  if (!content) return '';
+  if (!content) return "";
   try {
     return marked(content) as string;
   } catch (error) {
-    console.error('Markdown渲染失败:', error);
+    console.error("Markdown渲染失败:", error);
     return content;
   }
 };
@@ -936,12 +983,12 @@ const renderMarkdown = (content: string): string => {
 // 判断是否为图片URL
 const isImageUrl = (url: string): boolean => {
   if (!url) return false;
-  
+
   // 检查base64数据URL
-  if (url.startsWith('data:image/')) {
+  if (url.startsWith("data:image/")) {
     return true;
   }
-  
+
   // 检查文件扩展名
   const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
   return imageExtensions.test(url);
@@ -950,12 +997,12 @@ const isImageUrl = (url: string): boolean => {
 // 判断是否为视频URL
 const isVideoUrl = (url: string): boolean => {
   if (!url) return false;
-  
+
   // 检查base64数据URL
-  if (url.startsWith('data:video/')) {
+  if (url.startsWith("data:video/")) {
     return true;
   }
-  
+
   // 检查文件扩展名
   const videoExtensions = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/i;
   return videoExtensions.test(url);
@@ -963,8 +1010,8 @@ const isVideoUrl = (url: string): boolean => {
 
 // 处理媒体加载错误
 const handleMediaError = (event: Event) => {
-  console.error('媒体加载失败:', event);
-  ElMessage.warning('媒体文件加载失败');
+  console.error("媒体加载失败:", event);
+  ElMessage.warning("媒体文件加载失败");
 };
 
 const saveInterview = async () => {
@@ -1127,8 +1174,14 @@ const fetchInterviewsByDate = async (date: string) => {
         console.log(`${date} 当天没有面试`);
       } else {
         if (data.unavailable && Array.isArray(data.unavailable)) {
+          // 只处理已被预约的面试（netid不为空的项目）
+          const bookedInterviews = data.unavailable.filter(
+            (interview: Interview) =>
+              interview.netid && interview.netid.trim() !== ""
+          );
+
           // 并发获取所有学生姓名
-          const namePromises = data.unavailable.map(
+          const namePromises = bookedInterviews.map(
             async (interview: Interview) => {
               const name = interview.netid
                 ? await getStudent(interview.netid)
@@ -1182,7 +1235,7 @@ const getStudent = async (netid: string): Promise<string | null> => {
   return null;
 };
 
-// 计算面试在单元格内的绝对定位样式（30分钟一格，支持分钟精度）
+// 计算面试在单元格内的绝对定位样式（支持分钟精度）
 function getInterviewStartRow(datetime: string) {
   const date = new Date(datetime);
   const hours = date.getHours();
@@ -1194,14 +1247,14 @@ function getInterviewStartRow(datetime: string) {
   }
 
   const rowFromHours = hours - 8; // 8:00开始计算
-  const rowFromMinutes = minutes / 60; // 分钟转换为小数部分
+  const rowFromMinutes = minutes / 60; // 分钟转换为小数部分，例如30分钟 = 0.5
   return rowFromHours + rowFromMinutes;
 }
 function getInterviewItemStyle(datetime: string): CSSProperties {
   const startRow = getInterviewStartRow(datetime);
-  const rowHeight = 120;
+  const rowHeight = 120; // 每个时间格子的高度
   const top = startRow * rowHeight;
-  const height = 30;
+  const height = 30; // 面试项的固定高度
   return {
     position: "absolute",
     left: "4px",
@@ -1438,6 +1491,22 @@ onMounted(async () => {
   flex: 1;
   overflow-y: auto;
   height: 0;
+  position: relative; /* 为绝对定位的面试项提供定位上下文 */
+}
+
+.interviews-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* 让点击事件穿透到底层的时间格子 */
+  z-index: 1;
+}
+
+.day-column {
+  position: absolute;
+  pointer-events: auto; /* 恢复面试项的点击事件 */
 }
 
 .time-row {
@@ -1730,9 +1799,15 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.markdown-content h1 { font-size: 1.5em; }
-.markdown-content h2 { font-size: 1.3em; }
-.markdown-content h3 { font-size: 1.1em; }
+.markdown-content h1 {
+  font-size: 1.5em;
+}
+.markdown-content h2 {
+  font-size: 1.3em;
+}
+.markdown-content h3 {
+  font-size: 1.1em;
+}
 
 .markdown-content p {
   margin: 0.8em 0;
@@ -1752,7 +1827,7 @@ onMounted(async () => {
   background-color: #f1f2f6;
   padding: 2px 4px;
   border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 0.9em;
 }
 
@@ -1873,7 +1948,8 @@ onMounted(async () => {
   overflow-y: auto;
   line-height: 1.6;
   color: #24292e;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
 }
 
 .markdown-content h1,
@@ -1895,24 +1971,26 @@ onMounted(async () => {
   margin-top: 0;
 }
 
-.markdown-content h1 { 
-  font-size: 1.5em; 
+.markdown-content h1 {
+  font-size: 1.5em;
   border-bottom: 1px solid #e1e4e8;
   padding-bottom: 8px;
 }
-.markdown-content h2 { 
-  font-size: 1.3em; 
+.markdown-content h2 {
+  font-size: 1.3em;
   border-bottom: 1px solid #e1e4e8;
   padding-bottom: 6px;
 }
-.markdown-content h3 { font-size: 1.1em; }
+.markdown-content h3 {
+  font-size: 1.1em;
+}
 
 .markdown-content p {
   margin-bottom: 16px;
   color: #374151;
 }
 
-.markdown-content ul, 
+.markdown-content ul,
 .markdown-content ol {
   margin-bottom: 16px;
   padding-left: 24px;
@@ -1926,7 +2004,7 @@ onMounted(async () => {
   padding: 2px 4px;
   background: #f3f4f6;
   border-radius: 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 0.875em;
   color: #d73a49;
 }
@@ -2079,9 +2157,15 @@ onMounted(async () => {
   color: #2c3e50;
 }
 
-.markdown-content :deep(h1) { font-size: 1.8em; }
-.markdown-content :deep(h2) { font-size: 1.5em; }
-.markdown-content :deep(h3) { font-size: 1.3em; }
+.markdown-content :deep(h1) {
+  font-size: 1.8em;
+}
+.markdown-content :deep(h2) {
+  font-size: 1.5em;
+}
+.markdown-content :deep(h3) {
+  font-size: 1.3em;
+}
 
 .markdown-content :deep(p) {
   margin: 8px 0;
@@ -2109,7 +2193,7 @@ onMounted(async () => {
   background-color: #f1f3f4;
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
   font-size: 0.9em;
 }
 

@@ -15,16 +15,86 @@
                   <span class="search-label">筛选</span>
                   <el-input
                     v-model="smartSearchText"
-                    placeholder="请输入学生信息"
+                    placeholder="请输入学生姓名,学号或手机号"
                     clearable
                     size="large"
                     @input="handleSmartSearch"
                     @clear="clearSmartSearch"
                     class="search-input"
+                    :loading="searchLoading"
                   />
+                  <el-button
+                    link
+                    type="primary"
+                    @click="showAdvancedFilter = !showAdvancedFilter"
+                    class="advanced-filter-toggle"
+                  >
+                    {{ showAdvancedFilter ? "收起" : "高级筛选" }}
+                    <el-icon
+                      ><CaretBottom v-if="!showAdvancedFilter" /><CaretTop
+                        v-else
+                    /></el-icon>
+                  </el-button>
                 </div>
               </el-col>
             </el-row>
+
+            <!-- 高级筛选区域 -->
+            <el-collapse-transition>
+              <div v-show="showAdvancedFilter" class="advanced-filter-panel">
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="学号">
+                      <el-input
+                        v-model="advancedFilters.netid"
+                        placeholder="请输入学号"
+                        clearable
+                        @change="handleAdvancedFilterChange"
+                      />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="书院">
+                      <el-input
+                        v-model="advancedFilters.school"
+                        placeholder="请输入书院"
+                        clearable
+                        @change="handleAdvancedFilterChange"
+                      />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="意向部门">
+                      <el-select
+                        v-model="advancedFilters.department"
+                        placeholder="选择部门"
+                        clearable
+                        @change="handleAdvancedFilterChange"
+                      >
+                        <el-option label="技术部" value="tech" />
+                        <el-option label="视频部" value="video" />
+                        <el-option label="美工部" value="art" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                  <el-col :span="24">
+                    <div class="advanced-filter-actions">
+                      <el-button @click="resetAdvancedFilters" size="small"
+                        >重置筛选</el-button
+                      >
+                      <el-button
+                        type="primary"
+                        @click="applyAdvancedFilters"
+                        size="small"
+                        >应用筛选</el-button
+                      >
+                    </div>
+                  </el-col>
+                </el-row>
+              </div>
+            </el-collapse-transition>
           </div>
         </el-card>
 
@@ -106,12 +176,15 @@
               v-model:current-page="currentPage"
               :page-size="pageSize"
               size="small"
-              layout="prev, pager, next, slot"
-              :total="filteredInterviews.length"
+              layout="prev, pager, next, slot, jumper"
+              :total="totalStudents"
               class="pagination"
+              @current-change="handlePageChange"
             >
               <template #default class="pagination-text">
-                共{{ Math.ceil(filteredInterviews.length / pageSize) }}页
+                共{{ Math.ceil(totalStudents / pageSize) }}页，{{
+                  totalStudents
+                }}条记录
               </template>
             </el-pagination>
           </div>
@@ -270,29 +343,41 @@
               <template #header>
                 <div class="section-header">面试题目</div>
               </template>
-              <div v-if="editingStudent.queid && editingStudent.queid > 0" class="question-content">
-                <div v-if="editingStudent.questionContent" class="markdown-content">
-                  <div v-html="renderMarkdown(editingStudent.questionContent)"></div>
+              <div
+                v-if="editingStudent.queid && editingStudent.queid > 0"
+                class="question-content"
+              >
+                <div
+                  v-if="editingStudent.questionContent"
+                  class="markdown-content"
+                >
+                  <div
+                    v-html="renderMarkdown(editingStudent.questionContent)"
+                  ></div>
                 </div>
                 <div v-else class="no-question">
                   题目ID: {{ editingStudent.queid }} (题目内容获取中...)
                 </div>
-                
+
                 <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
-                <div v-if="editingStudent.questionUrl" class="question-media" style="margin-top: 12px;">
+                <div
+                  v-if="editingStudent.questionUrl"
+                  class="question-media"
+                  style="margin-top: 12px"
+                >
                   <!-- 图片显示 -->
-                  <img 
-                    v-if="isImageUrl(editingStudent.questionUrl)" 
-                    :src="editingStudent.questionUrl" 
-                    :alt="'题目图片'" 
+                  <img
+                    v-if="isImageUrl(editingStudent.questionUrl)"
+                    :src="editingStudent.questionUrl"
+                    :alt="'题目图片'"
                     class="question-image"
                     @error="handleMediaError"
                   />
                   <!-- 视频显示 -->
-                  <video 
-                    v-else-if="isVideoUrl(editingStudent.questionUrl)" 
-                    :src="editingStudent.questionUrl" 
-                    controls 
+                  <video
+                    v-else-if="isVideoUrl(editingStudent.questionUrl)"
+                    :src="editingStudent.questionUrl"
+                    controls
                     class="question-video"
                     @error="handleMediaError"
                   >
@@ -300,18 +385,23 @@
                   </video>
                   <!-- 其他链接显示为可点击链接 -->
                   <div v-else class="question-link">
-                    <el-link :href="editingStudent.questionUrl" target="_blank" type="primary">
+                    <el-link
+                      :href="editingStudent.questionUrl"
+                      target="_blank"
+                      type="primary"
+                    >
                       查看题目附件/链接
                     </el-link>
                   </div>
                 </div>
               </div>
-              
+
               <div v-else class="no-question">
                 <el-alert
                   title="该学生尚未抽取题目"
                   type="info"
-                  :closable="false">
+                  :closable="false"
+                >
                 </el-alert>
               </div>
             </el-card>
@@ -366,7 +456,10 @@
                   >
                     <div class="date-number">{{ date.day }}</div>
                     <div
-                      v-if="hasInterviewsOnDate(date.dateStr)"
+                      v-if="
+                        hasInterviewsOnDate(date.dateStr) &&
+                        getInterviewCountForDate(date.dateStr) > 0
+                      "
                       class="interview-dot"
                     >
                       {{ getInterviewCountForDate(date.dateStr) }}
@@ -439,7 +532,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { MoreFilled } from "@element-plus/icons-vue";
+import { MoreFilled, CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { studentAPI, interviewAPI, handleApiError, questionAPI } from "../api";
 import CloseIcon from "../assets/Outline - Essentional, UI - Close Circle.svg";
 import ArrowLeftIcon from "../assets/Outline - Arrows - Alt Arrow Left.svg";
@@ -452,8 +545,8 @@ import python from "highlight.js/lib/languages/python";
 import "highlight.js/styles/github.css";
 
 // 注册语言
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('python', python);
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("python", python);
 
 // 配置marked
 marked.setOptions({
@@ -506,6 +599,7 @@ interface InterviewsResponse {
 const loading = ref(false);
 const saving = ref(false);
 const students = ref<Student[]>([]);
+const totalStudents = ref(0); // 总学生数量
 const interviewDates = ref<InterviewDateInfo[]>([]);
 const dailyInterviewsData = ref<InterviewsResponse>({
   available: [],
@@ -513,17 +607,21 @@ const dailyInterviewsData = ref<InterviewsResponse>({
 });
 const bookedInterviewCounts = ref<Map<string, number>>(new Map()); // 存储每个日期已预约的面试数量
 const currentPage = ref(1);
-const pageSize = ref(3);
+const pageSize = ref(3); // 增加每页显示数量
 
 // 智能搜索相关
 const smartSearchText = ref("");
+const searchLoading = ref(false);
+const showAdvancedFilter = ref(false);
 
-// 筛选条件
-const filters = reactive({
+// 高级筛选条件
+const advancedFilters = reactive({
   name: "",
   department: "",
   interviewer: "",
   passStatus: "",
+  netid: "",
+  school: "",
 });
 
 // 统计数据
@@ -536,7 +634,23 @@ const statistics = reactive({
 
 // 编辑相关
 const editingStudent = ref<Student | null>(null);
-const selectedDate = ref(new Date().toISOString().split("T")[0]); // 当前日期
+
+// 获取当前日期
+const getCurrentDisplayDate = () => {
+  const now = new Date();
+
+  // 本地时间格式化函数
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  return formatLocalDate(now);
+};
+
+const selectedDate = ref(getCurrentDisplayDate()); // 当前日期
 const currentWeekStart = ref(new Date()); // 当前显示的两周开始日期
 
 // 周日期标题
@@ -544,73 +658,16 @@ const weekDays = ["周一", "周二", "周三", "周四", "周五", "周六", "�
 
 const studentFormRef = ref();
 
-// 计算属性
+// 计算属性 - 移除客户端筛选逻辑，改为直接显示从后端获取的数据
 const filteredInterviews = computed(() => {
-  let result = students.value;
-
-  // 智能搜索
-  if (smartSearchText.value.trim()) {
-    const searchTerm = smartSearchText.value.toLowerCase();
-    result = result.filter((student) => {
-      return (
-        student.name.toLowerCase().includes(searchTerm) ||
-        student.netid.toLowerCase().includes(searchTerm) ||
-        student.phone.includes(searchTerm) ||
-        student.school.toLowerCase().includes(searchTerm) ||
-        getDepartmentName(student.depart).toLowerCase().includes(searchTerm) ||
-        student.mastered.toLowerCase().includes(searchTerm) ||
-        student.tomaster.toLowerCase().includes(searchTerm) ||
-        (student.interv &&
-          student.interv.interviewer.toLowerCase().includes(searchTerm))
-      );
-    });
-  }
-
-  // 高级筛选
-  if (filters.name) {
-    result = result.filter((student) =>
-      student.name.toLowerCase().includes(filters.name.toLowerCase())
-    );
-  }
-
-  if (filters.department) {
-    result = result.filter(
-      (student) =>
-        student.depart === filters.department ||
-        (student.interv && student.interv.department === filters.department)
-    );
-  }
-
-  if (filters.interviewer) {
-    result = result.filter(
-      (student) =>
-        student.interv &&
-        student.interv.interviewer
-          .toLowerCase()
-          .includes(filters.interviewer.toLowerCase())
-    );
-  }
-
-  if (filters.passStatus) {
-    if (filters.passStatus === "pending") {
-      result = result.filter((student) => !student.interv);
-    } else {
-      result = result.filter(
-        (student) =>
-          student.interv &&
-          student.interv.pass.toString() === filters.passStatus
-      );
-    }
-  }
-
-  return result;
+  // 现在直接返回从后端获取的学生数据，筛选逻辑移至后端
+  return students.value;
 });
 
-// 分页后的学生数据
+// 分页数据直接使用后端返回的数据
 const paginatedInterviews = computed(() => {
-  const startIndex = (currentPage.value - 1) * pageSize.value;
-  const endIndex = startIndex + pageSize.value;
-  return filteredInterviews.value.slice(startIndex, endIndex);
+  // 后端已经返回分页数据，直接使用
+  return students.value;
 });
 
 // 计算当天的面试安排
@@ -618,10 +675,17 @@ const dailyInterviews = computed(() => {
   const available = dailyInterviewsData.value.available || [];
   const unavailable = dailyInterviewsData.value.unavailable || [];
 
-  // 只显示已被预约的面试（不可用时间段）
-  const allInterviews = [...unavailable];
+  console.log("dailyInterviews计算属性 - available:", available);
+  console.log("dailyInterviews计算属性 - unavailable:", unavailable);
 
-  return allInterviews
+  // 只显示已被预约的面试（netid不为空的项目）
+  const bookedInterviews = unavailable.filter(
+    (interview) => interview.netid && interview.netid.trim() !== ""
+  );
+
+  console.log("筛选出的已预约面试:", bookedInterviews);
+
+  const result = bookedInterviews
     .map((interview) => {
       // 查找对应的学生信息
       const student = students.value.find((s) => s.netid === interview.netid);
@@ -655,6 +719,9 @@ const dailyInterviews = computed(() => {
       const timeB = new Date(b.interv!.time).getTime();
       return timeA - timeB;
     });
+
+  console.log("最终的dailyInterviews结果:", result);
+  return result;
 });
 
 // 计算两周的日期数据
@@ -678,14 +745,16 @@ const twoWeeks = computed(() => {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + week * 7 + day);
 
-      let dateStr = currentDate.toISOString().split("T")[0];
+      // 使用本地时间格式化日期，避免时区问题
+      const formatLocalDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const day = date.getDate().toString().padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+
+      const dateStr = formatLocalDate(currentDate);
       const isCurrentMonth = currentDate.getMonth() + 1 === titleMonth;
-      const hour = currentDate.getHours();
-      if (hour < 8) {
-        const nextDate = new Date(currentDate);
-        nextDate.setDate(currentDate.getDate() + 1);
-        dateStr = nextDate.toISOString().split("T")[0];
-      }
 
       weekData.push({
         dateStr: dateStr,
@@ -801,13 +870,77 @@ const updateStatistics = () => {
   statistics.pending = students.value.filter((s) => !s.interv).length;
 };
 
-const fetchStudents = async () => {
+const fetchStudents = async (page: number = 1) => {
   loading.value = true;
   try {
+    // 构建查询参数，映射到后端期望的参数名
+    const params: any = {
+      page,
+      limit: pageSize.value,
+    };
+
+    // 智能搜索参数处理（后端使用精确匹配）
+    if (smartSearchText.value.trim()) {
+      const searchText = smartSearchText.value.trim();
+
+      // 判断搜索文本类型并智能映射到对应字段
+      if (/^\d{10}$/.test(searchText)) {
+        // 10位数字 - 精确匹配NetID
+        params.netid = searchText;
+      } else if (/^\d{11}$/.test(searchText)) {
+        // 11位数字 - 精确匹配手机号
+        params.phone = searchText;
+      } else {
+        // 其他情况 - 精确匹配姓名（后端使用精确匹配）
+        params.name = searchText;
+      }
+    }
+
+    // 高级筛选条件映射
+    if (advancedFilters.name) {
+      params.name = advancedFilters.name;
+    }
+    if (advancedFilters.netid) {
+      params.netid = advancedFilters.netid;
+    }
+    if (advancedFilters.school) {
+      params.school = advancedFilters.school;
+    }
+    // 部门筛选使用 depart 参数
+    if (advancedFilters.department && advancedFilters.department !== "") {
+      params.depart = advancedFilters.department;
+    }
+    // 面试官筛选
+    if (advancedFilters.interviewer) {
+      params.interviewer = advancedFilters.interviewer;
+    }
+    // 通过状态筛选
+    if (advancedFilters.passStatus && advancedFilters.passStatus !== "") {
+      params.pass = advancedFilters.passStatus === "passed" ? 1 : 0;
+    }
+
     // 调用后端API获取学生数据
-    const response = await studentAPI.getStudents();
+    const response = await studentAPI.getStudents(params);
     if (response.data && response.data.success) {
-      students.value = response.data.data || [];
+      const data = response.data.data;
+
+      // 处理后端返回的分页数据结构: { total: number, data: [] }
+      if (data && typeof data === "object") {
+        if (Array.isArray(data.data) && typeof data.total === "number") {
+          // 后端返回标准分页结构：{ total: number, data: [] }
+          students.value = data.data || [];
+          totalStudents.value = data.total || 0;
+        } else if (Array.isArray(data)) {
+          students.value = data;
+          totalStudents.value = data.length;
+        } else {
+          students.value = [];
+          totalStudents.value = 0;
+        }
+      } else {
+        students.value = [];
+        totalStudents.value = 0;
+      }
     } else {
       console.log("后端API调用失败，使用模拟数据");
       // 如果API调用失败，使用模拟数据
@@ -824,6 +957,55 @@ const fetchStudents = async () => {
   }
 };
 
+// 分页变更处理
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+  fetchStudents(page);
+};
+
+// 搜索处理 - 防抖
+let searchTimeout: NodeJS.Timeout;
+const handleSmartSearch = (value: string) => {
+  searchLoading.value = true;
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    currentPage.value = 1; // 搜索时重置到第一页
+    await fetchStudents(1);
+    searchLoading.value = false;
+  }, 500);
+};
+
+const clearSmartSearch = () => {
+  smartSearchText.value = "";
+  currentPage.value = 1;
+  fetchStudents(1);
+};
+
+// 高级筛选相关方法
+const handleAdvancedFilterChange = () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    applyAdvancedFilters();
+  }, 300);
+};
+
+const applyAdvancedFilters = async () => {
+  currentPage.value = 1;
+  await fetchStudents(1);
+};
+
+const resetAdvancedFilters = () => {
+  Object.assign(advancedFilters, {
+    name: "",
+    department: "",
+    interviewer: "",
+    passStatus: "",
+    netid: "",
+    school: "",
+  });
+  applyAdvancedFilters();
+};
+
 // 编辑学生信息相关方法
 const handleRowClick = (row: Student) => {
   // 点击行时打开编辑
@@ -832,9 +1014,13 @@ const handleRowClick = (row: Student) => {
 
 const editStudent = async (student: Student) => {
   editingStudent.value = JSON.parse(JSON.stringify(student));
-  
+
   // 如果学生有题目ID，获取题目内容
-  if (editingStudent.value && editingStudent.value.queid && editingStudent.value.queid > 0) {
+  if (
+    editingStudent.value &&
+    editingStudent.value.queid &&
+    editingStudent.value.queid > 0
+  ) {
     await fetchQuestionDetail(editingStudent.value.queid);
   }
 };
@@ -848,11 +1034,11 @@ const fetchQuestionDetail = async (questionId: number) => {
   try {
     // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
     const response = await questionAPI.getQuestions();
-    
+
     if (response.data && response.data.success && response.data.data) {
       // 检查不同的数据结构
       let questions = null;
-      
+
       if (response.data.data.questions) {
         questions = response.data.data.questions;
       } else if (Array.isArray(response.data.data)) {
@@ -860,10 +1046,10 @@ const fetchQuestionDetail = async (questionId: number) => {
       } else if (response.data.data.Data) {
         questions = response.data.data.Data;
       }
-      
+
       if (questions && Array.isArray(questions)) {
         const question = questions.find((q: any) => q.id === questionId);
-        
+
         if (question && editingStudent.value) {
           editingStudent.value.questionContent = question.question;
           editingStudent.value.questionUrl = question.url;
@@ -877,11 +1063,11 @@ const fetchQuestionDetail = async (questionId: number) => {
 
 // 渲染markdown内容
 const renderMarkdown = (content: string): string => {
-  if (!content) return '';
+  if (!content) return "";
   try {
     return marked(content) as string;
   } catch (error) {
-    console.error('Markdown渲染失败:', error);
+    console.error("Markdown渲染失败:", error);
     return content;
   }
 };
@@ -889,12 +1075,12 @@ const renderMarkdown = (content: string): string => {
 // 判断是否为图片URL
 const isImageUrl = (url: string): boolean => {
   if (!url) return false;
-  
+
   // 检查base64数据URL
-  if (url.startsWith('data:image/')) {
+  if (url.startsWith("data:image/")) {
     return true;
   }
-  
+
   // 检查文件扩展名
   const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
   return imageExtensions.test(url);
@@ -903,12 +1089,12 @@ const isImageUrl = (url: string): boolean => {
 // 判断是否为视频URL
 const isVideoUrl = (url: string): boolean => {
   if (!url) return false;
-  
+
   // 检查base64数据URL
-  if (url.startsWith('data:video/')) {
+  if (url.startsWith("data:video/")) {
     return true;
   }
-  
+
   // 检查文件扩展名
   const videoExtensions = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/i;
   return videoExtensions.test(url);
@@ -916,8 +1102,8 @@ const isVideoUrl = (url: string): boolean => {
 
 // 处理媒体加载错误
 const handleMediaError = (event: Event) => {
-  console.error('媒体加载失败:', event);
-  ElMessage.warning('媒体文件加载失败');
+  console.error("媒体加载失败:", event);
+  ElMessage.warning("媒体文件加载失败");
 };
 
 const saveStudent = async () => {
@@ -1030,7 +1216,12 @@ const preloadBookedInterviewCounts = async () => {
       const dateParam = `${dateInfo.date}T00:00:00Z`;
       const response = await interviewAPI.getInterviewsByDate(dateParam);
       if (response.data && response.data.success) {
-        const unavailableCount = response.data.data?.unavailable?.length || 0;
+        // 只计算已被预约的面试（netid不为空的项目）
+        const bookedInterviews =
+          response.data.data?.unavailable?.filter(
+            (interview: any) => interview.netid && interview.netid.trim() !== ""
+          ) || [];
+        const unavailableCount = bookedInterviews.length;
         bookedInterviewCounts.value.set(dateInfo.date, unavailableCount);
       } else {
         bookedInterviewCounts.value.set(dateInfo.date, 0);
@@ -1048,26 +1239,47 @@ const preloadBookedInterviewCounts = async () => {
 const fetchInterviewsByDate = async (date: string) => {
   loading.value = true;
   try {
-    // 构造标准格式的时间参数
+    // 格式化日期为ISO 8601格式，确保后端能正确解析
     const dateParam = `${date}T00:00:00Z`;
+
+    // 使用管理员API获取面试信息
     const response = await interviewAPI.getInterviewsByDate(dateParam);
 
+    // 添加调试信息
+    console.log("获取面试信息响应:", response.data);
+
     if (response.data && response.data.success) {
-      dailyInterviewsData.value = response.data.data || {
-        available: [],
-        unavailable: [],
+      const data = response.data.data;
+      console.log("后端返回的data对象:", data);
+
+      const availableInterviews = data.available || [];
+      const unavailableInterviews = data.unavailable || [];
+
+      console.log("Available interviews:", availableInterviews);
+      console.log("Unavailable interviews:", unavailableInterviews);
+
+      // 直接使用后端返回的分类结果
+      dailyInterviewsData.value = {
+        available: availableInterviews,
+        unavailable: unavailableInterviews,
       };
-      // 更新该日期的已预约面试数量
-      const unavailableCount =
-        dailyInterviewsData.value.unavailable?.length || 0;
-      bookedInterviewCounts.value.set(date, unavailableCount);
+
+      // 更新该日期的已预约面试数量（只计算netid不为空的项目）
+      const bookedCount = unavailableInterviews.filter(
+        (interview: any) => interview.netid && interview.netid.trim() !== ""
+      ).length;
+      bookedInterviewCounts.value.set(date, bookedCount);
+
+      console.log("设置的dailyInterviewsData:", dailyInterviewsData.value);
     } else {
+      console.log("API响应失败，设置空数据");
       dailyInterviewsData.value = { available: [], unavailable: [] };
       bookedInterviewCounts.value.set(date, 0);
     }
   } catch (error) {
     console.error("获取面试信息失败:", error);
     dailyInterviewsData.value = { available: [], unavailable: [] };
+    bookedInterviewCounts.value.set(date, 0);
   } finally {
     loading.value = false;
   }
@@ -1133,14 +1345,8 @@ const loadMockData = () => {
       queid: 2,
     },
   ];
+  totalStudents.value = students.value.length;
   updateStatistics();
-};
-
-// 搜索和筛选方法
-const handleSmartSearch = (value: string) => {};
-
-const clearSmartSearch = () => {
-  smartSearchText.value = "";
 };
 
 // 生命周期
@@ -1154,7 +1360,7 @@ onMounted(async () => {
   currentWeekStart.value = weekStart;
 
   // 获取数据
-  await fetchStudents();
+  await fetchStudents(1); // 获取第一页学生数据
   await fetchInterviewDates();
 
   // 预加载所有日期的已预约面试数量
@@ -1928,9 +2134,15 @@ onMounted(async () => {
   color: #2c3e50;
 }
 
-.markdown-content :deep(h1) { font-size: 1.8em; }
-.markdown-content :deep(h2) { font-size: 1.5em; }
-.markdown-content :deep(h3) { font-size: 1.3em; }
+.markdown-content :deep(h1) {
+  font-size: 1.8em;
+}
+.markdown-content :deep(h2) {
+  font-size: 1.5em;
+}
+.markdown-content :deep(h3) {
+  font-size: 1.3em;
+}
 
 .markdown-content :deep(p) {
   margin: 8px 0;
@@ -1958,7 +2170,7 @@ onMounted(async () => {
   background-color: #f1f3f4;
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
   font-size: 0.9em;
 }
 
@@ -2051,5 +2263,63 @@ onMounted(async () => {
 
 .question-link {
   text-align: center;
+}
+
+/* 高级筛选样式 */
+.search-row {
+  margin-bottom: 12px;
+}
+
+.smart-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.advanced-filter-trigger {
+  cursor: pointer;
+  color: #409eff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.advanced-filter-trigger:hover {
+  color: #337ecc;
+}
+
+.advanced-filter-panel {
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.advanced-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.advanced-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #606266;
 }
 </style>
