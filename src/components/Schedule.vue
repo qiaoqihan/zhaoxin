@@ -46,14 +46,12 @@
             <!-- 时间列 -->
             <div class="time-cell">{{ timeSlot.display }}</div>
 
-            <!-- 每天的时间格子 -->
             <div
               v-for="day in weekDays"
               :key="`${day.date}-${timeSlot.time}`"
               class="schedule-cell"
               @click="handleCellClick(day.date, timeSlot.time)"
             >
-              <!-- 时间格子内容，用于点击事件，面试项将通过绝对定位在外层显示 -->
             </div>
           </div>
 
@@ -940,28 +938,38 @@ const fetchStudentDetail = async (netid: string) => {
 // 获取题目详情
 const fetchQuestionDetail = async (questionId: number) => {
   try {
-    // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
-    const response = await questionAPI.getQuestions();
+    // 直接通过问题ID获取单个问题详情，而不是获取所有问题再筛选
+    const response = await questionAPI.getQuestionById(questionId);
 
     if (response.data && response.data.success && response.data.data) {
       // 检查不同的数据结构
-      let questions = null;
+      let question = null;
 
-      if (response.data.data.questions) {
-        questions = response.data.data.questions;
-      } else if (Array.isArray(response.data.data)) {
-        questions = response.data.data;
-      } else if (response.data.data.Data) {
-        questions = response.data.data.Data;
+      if (
+        response.data.data.questions &&
+        Array.isArray(response.data.data.questions) &&
+        response.data.data.questions.length > 0
+      ) {
+        question = response.data.data.questions[0];
+      } else if (
+        Array.isArray(response.data.data) &&
+        response.data.data.length > 0
+      ) {
+        question = response.data.data[0];
+      } else if (
+        response.data.data.Data &&
+        Array.isArray(response.data.data.Data) &&
+        response.data.data.Data.length > 0
+      ) {
+        question = response.data.data.Data[0];
+      } else if (response.data.data.question || response.data.data.url) {
+        // 直接返回问题对象
+        question = response.data.data;
       }
 
-      if (questions && Array.isArray(questions)) {
-        const question = questions.find((q: any) => q.id === questionId);
-
-        if (question && studentDetail.value) {
-          studentDetail.value.questionContent = question.question;
-          studentDetail.value.questionUrl = question.url;
-        }
+      if (question && studentDetail.value) {
+        studentDetail.value.questionContent = question.question;
+        studentDetail.value.questionUrl = question.url;
       }
     }
   } catch (error) {
@@ -1224,10 +1232,10 @@ const getStudent = async (netid: string): Promise<string | null> => {
     if (
       response.data &&
       response.data.success &&
-      Array.isArray(response.data.data) &&
-      response.data.data.length > 0
+      Array.isArray(response.data.data.data) &&
+      response.data.data.data.length > 0
     ) {
-      return response.data.data[0].name || null;
+      return response.data.data.data[0].name || null;
     }
   } catch (error) {
     console.error("获取学生数据失败:", error);

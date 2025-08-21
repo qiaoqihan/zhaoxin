@@ -675,15 +675,10 @@ const dailyInterviews = computed(() => {
   const available = dailyInterviewsData.value.available || [];
   const unavailable = dailyInterviewsData.value.unavailable || [];
 
-  console.log("dailyInterviews计算属性 - available:", available);
-  console.log("dailyInterviews计算属性 - unavailable:", unavailable);
-
   // 只显示已被预约的面试（netid不为空的项目）
   const bookedInterviews = unavailable.filter(
     (interview) => interview.netid && interview.netid.trim() !== ""
   );
-
-  console.log("筛选出的已预约面试:", bookedInterviews);
 
   const result = bookedInterviews
     .map((interview) => {
@@ -723,7 +718,6 @@ const dailyInterviews = computed(() => {
       return timeA - timeB;
     });
 
-  console.log("最终的dailyInterviews结果:", result);
   return result;
 });
 
@@ -945,14 +939,12 @@ const fetchStudents = async (page: number = 1) => {
         totalStudents.value = 0;
       }
     } else {
-      console.log("后端API调用失败，使用模拟数据");
       // 如果API调用失败，使用模拟数据
       loadMockData();
     }
     updateStatistics();
   } catch (error) {
     console.error("获取学生数据失败:", error);
-    console.log("使用模拟数据");
     // 使用模拟数据
     loadMockData();
   } finally {
@@ -1018,13 +1010,14 @@ const handleRowClick = (row: Student) => {
 const editStudent = async (student: Student) => {
   // 检查学生信息是否完整，如果不完整则尝试获取完整信息
   let completeStudent = student;
-  
-  // 如果学生信息看起来不完整（比如缺少基本字段），尝试从后端获取
+
   if (!student.phone || !student.school || student.name === student.netid) {
-    console.log('学生信息不完整，尝试获取完整信息:', student);
     try {
       // 通过netid获取完整的学生信息
-      const response = await studentAPI.getStudents({ netid: student.netid, limit: 1 });
+      const response = await studentAPI.getStudents({
+        netid: student.netid,
+        limit: 1,
+      });
       if (response.data?.success && response.data.data?.data?.length > 0) {
         const fetchedStudent = response.data.data.data[0];
         // 合并面试信息到获取的完整学生信息中
@@ -1032,10 +1025,9 @@ const editStudent = async (student: Student) => {
           ...fetchedStudent,
           interv: student.interv, // 保持原有的面试信息
         };
-        console.log('获取到完整学生信息:', completeStudent);
       }
     } catch (error) {
-      console.error('获取完整学生信息失败:', error);
+      console.error("获取完整学生信息失败:", error);
       // 如果获取失败，继续使用原有的学生信息
     }
   }
@@ -1059,28 +1051,37 @@ const closeEdit = () => {
 // 获取题目详情
 const fetchQuestionDetail = async (questionId: number) => {
   try {
-    // 由于后端题目API不支持通过ID获取，我们获取所有题目然后筛选
-    const response = await questionAPI.getQuestions();
+    const response = await questionAPI.getQuestionById(questionId);
 
     if (response.data && response.data.success && response.data.data) {
       // 检查不同的数据结构
-      let questions = null;
+      let question = null;
 
-      if (response.data.data.questions) {
-        questions = response.data.data.questions;
-      } else if (Array.isArray(response.data.data)) {
-        questions = response.data.data;
-      } else if (response.data.data.Data) {
-        questions = response.data.data.Data;
+      if (
+        response.data.data.questions &&
+        Array.isArray(response.data.data.questions) &&
+        response.data.data.questions.length > 0
+      ) {
+        question = response.data.data.questions[0];
+      } else if (
+        Array.isArray(response.data.data) &&
+        response.data.data.length > 0
+      ) {
+        question = response.data.data[0];
+      } else if (
+        response.data.data.Data &&
+        Array.isArray(response.data.data.Data) &&
+        response.data.data.Data.length > 0
+      ) {
+        question = response.data.data.Data[0];
+      } else if (response.data.data.question || response.data.data.url) {
+        // 直接返回问题对象
+        question = response.data.data;
       }
 
-      if (questions && Array.isArray(questions)) {
-        const question = questions.find((q: any) => q.id === questionId);
-
-        if (question && editingStudent.value) {
-          editingStudent.value.questionContent = question.question;
-          editingStudent.value.questionUrl = question.url;
-        }
+      if (question && editingStudent.value) {
+        editingStudent.value.questionContent = question.question;
+        editingStudent.value.questionUrl = question.url;
       }
     }
   } catch (error) {
@@ -1140,7 +1141,7 @@ const saveStudent = async () => {
     await studentFormRef.value.validate();
     saving.value = true;
 
-    // 准备学生基本信息数据（只包含后端支持更新的字段）
+    // 准备学生基本信息数据
     const studentData = {
       netid: editingStudent.value.netid,
       name: editingStudent.value.name,
@@ -1266,40 +1267,26 @@ const preloadBookedInterviewCounts = async () => {
 const fetchInterviewsByDate = async (date: string) => {
   loading.value = true;
   try {
-    // 格式化日期为ISO 8601格式，确保后端能正确解析
     const dateParam = `${date}T00:00:00Z`;
 
-    // 使用管理员API获取面试信息
     const response = await interviewAPI.getInterviewsByDate(dateParam);
-
-    // 添加调试信息
-    console.log("获取面试信息响应:", response.data);
 
     if (response.data && response.data.success) {
       const data = response.data.data;
-      console.log("后端返回的data对象:", data);
 
       const availableInterviews = data.available || [];
       const unavailableInterviews = data.unavailable || [];
 
-      console.log("Available interviews:", availableInterviews);
-      console.log("Unavailable interviews:", unavailableInterviews);
-
-      // 直接使用后端返回的分类结果
       dailyInterviewsData.value = {
         available: availableInterviews,
         unavailable: unavailableInterviews,
       };
 
-      // 更新该日期的已预约面试数量（只计算netid不为空的项目）
       const bookedCount = unavailableInterviews.filter(
         (interview: any) => interview.netid && interview.netid.trim() !== ""
       ).length;
       bookedInterviewCounts.value.set(date, bookedCount);
-
-      console.log("设置的dailyInterviewsData:", dailyInterviewsData.value);
     } else {
-      console.log("API响应失败，设置空数据");
       dailyInterviewsData.value = { available: [], unavailable: [] };
       bookedInterviewCounts.value.set(date, 0);
     }
@@ -1387,7 +1374,7 @@ onMounted(async () => {
   currentWeekStart.value = weekStart;
 
   // 获取数据
-  await fetchStudents(1); // 获取第一页学生数据
+  await fetchStudents(1);
   await fetchInterviewDates();
 
   // 预加载所有日期的已预约面试数量

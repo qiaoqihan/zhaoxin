@@ -137,7 +137,8 @@ export const studentAPI = {
   getStudents: (params?: any) => axios.get("/api/admin/stu", { params }),
 
   // 获取单个学生详情 (使用现有接口通过netid参数获取)
-  getStudentDetail: (netid: string) => axios.get("/api/admin/stu", { params: { netid } }),
+  getStudentDetail: (netid: string) =>
+    axios.get("/api/admin/stu", { params: { netid } }),
 
   // 获取学生统计数据
   getStatistics: () => axios.get("/api/admin/stat"),
@@ -187,6 +188,9 @@ export const interviewAPI = {
 export const questionAPI = {
   // 获取题目列表
   getQuestions: (params?: any) => axios.get("/api/que/", { params }),
+
+  // 根据ID获取单个题目
+  getQuestionById: (id: number) => axios.get(`/api/que/${id}`),
 
   // 创建题目
   createQuestion: (data: any) =>
