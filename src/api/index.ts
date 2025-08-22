@@ -192,6 +192,17 @@ export const questionAPI = {
   // 根据ID获取单个题目
   getQuestionById: (id: number) => axios.get(`/api/que/${id}`),
 
+  // 上传问题的图片或视频文件
+  uploadQuestionFile: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return axios.post("/api/que/data", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
   // 创建题目
   createQuestion: (data: any) =>
     axios.post("/api/que/", {

@@ -67,7 +67,7 @@
                   <!-- 如果是视频文件 -->
                   <video
                     v-if="isVideoFile(selectedQuestion.url)"
-                    :src="selectedQuestion.url"
+                    :src="getFullFileUrl(selectedQuestion.url)"
                     class="question-video"
                     controls
                     @error="handleMediaError"
@@ -77,7 +77,7 @@
                   <!-- 如果是图片文件 -->
                   <img
                     v-else
-                    :src="selectedQuestion.url"
+                    :src="getFullFileUrl(selectedQuestion.url)"
                     :alt="selectedQuestion.title"
                     class="question-image"
                     @error="handleMediaError"
@@ -196,7 +196,6 @@
           <el-upload
             ref="uploadRef"
             class="media-uploader"
-            action="#"
             :show-file-list="false"
             :before-upload="beforeMediaUpload"
             :http-request="handleMediaUpload"
@@ -208,7 +207,7 @@
             <!-- 视频预览 -->
             <video
               v-if="questionForm.url && isVideoFile(questionForm.url)"
-              :src="questionForm.url"
+              :src="getFullFileUrl(questionForm.url)"
               class="uploaded-video"
               controls
             >
@@ -217,7 +216,7 @@
             <!-- 图片预览 -->
             <img
               v-else-if="questionForm.url && !isVideoFile(questionForm.url)"
-              :src="questionForm.url"
+              :src="getFullFileUrl(questionForm.url)"
               class="uploaded-image"
             />
             <!-- 上传占位符 -->
@@ -242,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, nextTick } from "vue";
 import { marked } from "marked";
 // markdown渲染函数
 function renderedMarkdown(content: string) {
@@ -253,6 +252,7 @@ import { ElMessage, ElMessageBox, ElUpload } from "element-plus";
 import { Plus, Search, Edit } from "@element-plus/icons-vue";
 import { questionAPI } from "../api/index";
 import PinIcon from "../assets/Outline - Essentional, UI - Pin.svg";
+import config from "../config/index";
 
 // 定义接口
 interface QuestionItem {
@@ -340,6 +340,25 @@ const filteredQuestions = computed(() => {
 
   return result;
 });
+
+// 获取完整的文件URL
+const getFullFileUrl = (url: string) => {
+  if (!url) return "";
+  
+  // 如果已经是完整URL（包含协议），直接返回
+  if (url.includes("://")) {
+    return url;
+  }
+  
+  // 如果是base64数据，直接返回
+  if (url.startsWith("data:")) {
+    return url;
+  }
+  
+  // 否则拼接文件服务器基础URL
+  const baseUrl = config.fileServer.baseURL;
+  return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+};
 
 // 获取部门下的题目列表
 const getDepartmentQuestions = (department: string) => {
@@ -589,33 +608,40 @@ const beforeMediaUpload = (file: File) => {
     ElMessage.error("文件大小不能超过 10MB!");
     return false;
   }
+  
   return true;
 };
 
 // 处理媒体文件上传
-const handleMediaUpload = (options: any) => {
-  return new Promise((resolve, reject) => {
+const handleMediaUpload = async (options: any) => {
+  try {
     const file = options.file;
 
-    // 创建 FileReader 来读取文件并转换为 base64
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      questionForm.url = result;
+    // 使用新的文件上传API
+    const uploadResponse = await questionAPI.uploadQuestionFile(file);
+
+    if (uploadResponse.data && uploadResponse.data.success) {
+      // 获取服务器返回的文件相对路径
+      const filePath =
+        uploadResponse.data.data?.path ||
+        uploadResponse.data.data?.url ||
+        uploadResponse.data.data;
+      questionForm.url = filePath;
 
       const fileType = file.type.startsWith("video/") ? "视频" : "图片";
       ElMessage.success(`${fileType}上传成功`);
 
-      options.onSuccess?.(result);
-      resolve(result);
-    };
-    reader.onerror = (error) => {
-      ElMessage.error("文件读取失败");
-      options.onError?.(error);
-      reject(error);
-    };
-    reader.readAsDataURL(file);
-  });
+      options.onSuccess?.(filePath);
+      return filePath;
+    } else {
+      throw new Error(uploadResponse.data?.message || "上传失败");
+    }
+  } catch (error) {
+    console.error("文件上传失败:", error);
+    ElMessage.error("文件上传失败");
+    options.onError?.(error);
+    throw error;
+  }
 };
 
 // 上传文件数量超出限制时的处理

@@ -368,7 +368,7 @@
                   <!-- 图片显示 -->
                   <img
                     v-if="isImageUrl(editingStudent.questionUrl)"
-                    :src="editingStudent.questionUrl"
+                    :src="getFullFileUrl(editingStudent.questionUrl)"
                     :alt="'题目图片'"
                     class="question-image"
                     @error="handleMediaError"
@@ -376,7 +376,7 @@
                   <!-- 视频显示 -->
                   <video
                     v-else-if="isVideoUrl(editingStudent.questionUrl)"
-                    :src="editingStudent.questionUrl"
+                    :src="getFullFileUrl(editingStudent.questionUrl)"
                     controls
                     class="question-video"
                     @error="handleMediaError"
@@ -386,7 +386,7 @@
                   <!-- 其他链接显示为可点击链接 -->
                   <div v-else class="question-link">
                     <el-link
-                      :href="editingStudent.questionUrl"
+                      :href="getFullFileUrl(editingStudent.questionUrl)"
                       target="_blank"
                       type="primary"
                     >
@@ -534,6 +534,7 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { MoreFilled, CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { studentAPI, interviewAPI, handleApiError, questionAPI } from "../api";
+import systemConfig from "@/config";
 import CloseIcon from "../assets/Outline - Essentional, UI - Close Circle.svg";
 import ArrowLeftIcon from "../assets/Outline - Arrows - Alt Arrow Left.svg";
 import ArrowRightIcon from "../assets/Outline - Arrows - Alt Arrow Right.svg";
@@ -1126,6 +1127,27 @@ const isVideoUrl = (url: string): boolean => {
   // 检查文件扩展名
   const videoExtensions = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/i;
   return videoExtensions.test(url);
+};
+
+// 处理文件URL，将相对路径转换为完整访问路径
+const getFullFileUrl = (url: string): string => {
+  if (!url) return '';
+  
+  // 如果是base64数据URL，直接返回
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // 如果是完整的HTTP(S)URL，直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // 移除路径中的/manage前缀（如果存在）
+  const cleanPath = url.startsWith('/manage') ? url.replace('/manage', '') : url;
+  
+  // 使用配置中的文件服务器地址
+  return `${systemConfig.fileServer.baseURL}${cleanPath}`;
 };
 
 // 处理媒体加载错误

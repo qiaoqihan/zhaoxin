@@ -6,6 +6,11 @@ export interface SystemConfig {
     timeout: number;
   };
 
+  // 文件服务器配置
+  fileServer: {
+    baseURL: string;
+  };
+
   // 分页配置
   pagination: {
     defaultPageSize: number;
@@ -23,6 +28,9 @@ const developmentConfig: SystemConfig = {
   api: {
     baseURL: "",
     timeout: 10000,
+  },
+  fileServer: {
+    baseURL: "http://localhost:8088",
   },
   pagination: {
     defaultPageSize: 20,
@@ -43,10 +51,13 @@ const productionConfig: SystemConfig = {
     baseURL: "https://zhaoxin.tiaozhan.com/", // 实际的API地址
     timeout: 15000,
   },
+  fileServer: {
+    baseURL: "https://zhaoxin.tiaozhan.com",
+  },
 };
 
 // 根据环境选择配置
-const config: SystemConfig = productionConfig
+const config: SystemConfig = productionConfig;
 
 export default config;
 
