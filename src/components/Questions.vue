@@ -344,17 +344,17 @@ const filteredQuestions = computed(() => {
 // 获取完整的文件URL
 const getFullFileUrl = (url: string) => {
   if (!url) return "";
-  
+
   // 如果已经是完整URL（包含协议），直接返回
   if (url.includes("://")) {
     return url;
   }
-  
+
   // 如果是base64数据，直接返回
   if (url.startsWith("data:")) {
     return url;
   }
-  
+
   // 否则拼接文件服务器基础URL
   const baseUrl = config.fileServer.baseURL;
   return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
@@ -608,7 +608,7 @@ const beforeMediaUpload = (file: File) => {
     ElMessage.error("文件大小不能超过 10MB!");
     return false;
   }
-  
+
   return true;
 };
 

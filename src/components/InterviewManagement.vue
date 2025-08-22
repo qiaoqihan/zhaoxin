@@ -249,7 +249,6 @@
                 <el-input
                   v-model="editingStudent.whereknow"
                   placeholder="请输入了解来源"
-                  disabled
                 />
               </el-form-item>
             </el-card>
@@ -290,7 +289,6 @@
                 <el-input
                   v-model="editingStudent.tag"
                   placeholder="请输入标签"
-                  disabled
                 />
               </el-form-item>
             </el-card>
@@ -304,6 +302,12 @@
               <template #header>
                 <div class="section-header">面试信息</div>
               </template>
+              <el-form-item label="面试官">
+                <el-input
+                  v-model="editingStudent.interv.interviewer"
+                  placeholder="请输入面试官姓名"
+                />
+              </el-form-item>
               <el-form-item label="面试部门">
                 <el-select
                   v-model="editingStudent.interv.department"
@@ -1173,6 +1177,8 @@ const saveStudent = async () => {
       tomaster: editingStudent.value.tomaster,
       depart: editingStudent.value.depart,
       queid: editingStudent.value.queid || 0,
+      tag: editingStudent.value.tag,
+      whereknow: editingStudent.value.whereknow,
     };
 
     // 更新学生基本信息
@@ -1186,6 +1192,7 @@ const saveStudent = async () => {
         star: editingStudent.value.interv.star,
         pass: editingStudent.value.interv.pass,
         evaluation: editingStudent.value.interv.evaluation,
+        interviewer: editingStudent.value.interv.interviewer,
       };
 
       await interviewAPI.updateInterview(

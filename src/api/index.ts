@@ -154,6 +154,8 @@ export const studentAPI = {
       tomaster: data.tomaster,
       depart: data.depart,
       queid: data.queid || 0,
+      tag: data.tag,
+      whereknow: data.whereknow,
     };
     return axios.put(`/api/admin/stu${id}`, requestData);
   },
