@@ -265,6 +265,7 @@ const handleLogin = async () => {
             "admin_info",
             JSON.stringify(response.data.data)
           );
+          console.log("登录成功，测试是否为最新版本")
           ElMessage.success("登录成功");
           emit("loginSuccess");
         } else {
