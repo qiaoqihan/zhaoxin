@@ -583,6 +583,7 @@ interface Interview {
   id: number;
   netid: string | null;
   time: string;
+  queid: number;
   interviewer: string;
   department: string;
   star: number;
@@ -711,7 +712,7 @@ const dailyInterviews = computed(() => {
         tag: "",
         interv: interview,
         message: 0,
-        queid: 0,
+        queid: interview.queid,
         questionContent: "", // 添加缺失的字段
         questionUrl: "", // 添加缺失的字段
       };
@@ -1059,7 +1060,6 @@ const fetchQuestionDetail = async (questionId: number) => {
     const response = await questionAPI.getQuestionById(questionId);
 
     if (response.data && response.data.success && response.data.data) {
-      // 检查不同的数据结构
       let question = null;
 
       if (
@@ -1135,21 +1135,23 @@ const isVideoUrl = (url: string): boolean => {
 
 // 处理文件URL，将相对路径转换为完整访问路径
 const getFullFileUrl = (url: string): string => {
-  if (!url) return '';
-  
+  if (!url) return "";
+
   // 如果是base64数据URL，直接返回
-  if (url.startsWith('data:')) {
+  if (url.startsWith("data:")) {
     return url;
   }
-  
+
   // 如果是完整的HTTP(S)URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  
+
   // 移除路径中的/manage前缀（如果存在）
-  const cleanPath = url.startsWith('/manage') ? url.replace('/manage', '') : url;
-  
+  const cleanPath = url.startsWith("/manage")
+    ? url.replace("/manage", "")
+    : url;
+
   // 使用配置中的文件服务器地址
   return `${systemConfig.fileServer.baseURL}${cleanPath}`;
 };
@@ -1273,7 +1275,6 @@ const preloadBookedInterviewCounts = async () => {
       const dateParam = `${dateInfo.date}T00:00:00Z`;
       const response = await interviewAPI.getInterviewsByDate(dateParam);
       if (response.data && response.data.success) {
-        // 只计算已被预约的面试（netid不为空的项目）
         const bookedInterviews =
           response.data.data?.unavailable?.filter(
             (interview: any) => interview.netid && interview.netid.trim() !== ""
@@ -1368,6 +1369,7 @@ const loadMockData = () => {
         star: 4,
         evaluation: "基础扎实，学习能力强",
         pass: 1,
+        queid: 1,
       },
       message: 7,
       queid: 1,
