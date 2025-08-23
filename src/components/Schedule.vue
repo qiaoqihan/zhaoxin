@@ -51,8 +51,7 @@
               :key="`${day.date}-${timeSlot.time}`"
               class="schedule-cell"
               @click="handleCellClick(day.date, timeSlot.time)"
-            >
-            </div>
+            ></div>
           </div>
 
           <!-- 面试项容器 - 使用绝对定位覆盖在时间格子上 -->
@@ -215,7 +214,7 @@
         <!-- 学生详细信息 -->
         <div class="student-detail-section" style="margin-top: 20px">
           <el-divider>学生详细信息</el-divider>
-          <el-loading v-loading="loadingStudentDetail">
+          <div v-loading="loadingStudentDetail">
             <div v-if="studentDetail" class="student-info">
               <el-descriptions :column="2" border>
                 <el-descriptions-item label="学号">
@@ -314,7 +313,7 @@
               >
               </el-alert>
             </div>
-          </el-loading>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -1019,21 +1018,23 @@ const isVideoUrl = (url: string): boolean => {
 
 // 处理文件URL，将相对路径转换为完整访问路径
 const getFullFileUrl = (url: string): string => {
-  if (!url) return '';
-  
+  if (!url) return "";
+
   // 如果是base64数据URL，直接返回
-  if (url.startsWith('data:')) {
+  if (url.startsWith("data:")) {
     return url;
   }
-  
+
   // 如果是完整的HTTP(S)URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  
+
   // 移除路径中的/manage前缀（如果存在）
-  const cleanPath = url.startsWith('/manage') ? url.replace('/manage', '') : url;
-  
+  const cleanPath = url.startsWith("/manage")
+    ? url.replace("/manage", "")
+    : url;
+
   // 使用配置中的文件服务器地址
   return `${systemConfig.fileServer.baseURL}${cleanPath}`;
 };
@@ -1123,7 +1124,7 @@ const cancelInterview = async () => {
     );
 
     deleting.value = true;
-    await interviewAPI.deleteInterview(selectedInterview.value.id);
+    await interviewAPI.cancelInterview(selectedInterview.value.id);
     ElMessage.success("面试已取消");
     await loadInterviews();
     showDetailDialog.value = false;
