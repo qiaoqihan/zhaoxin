@@ -2155,8 +2155,6 @@ onMounted(async () => {
 
 /* 题目显示样式 */
 .question-content {
-  max-height: 400px;
-  overflow-y: auto;
   padding: 16px;
   background-color: #f8f9fa;
   border-radius: 8px;

@@ -192,126 +192,128 @@
 
     <!-- 面试详情对话框 -->
     <el-dialog v-model="showDetailDialog" title="面试详情" width="800px">
-      <div v-if="selectedInterview" class="interview-detail">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="候选人">
-            {{ selectedInterview.candidate }}
-          </el-descriptions-item>
-          <el-descriptions-item label="时间">
-            {{ formatDateTime(selectedInterview.datetime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="面试官">
-            {{ selectedInterview.interviewer }}
-          </el-descriptions-item>
-          <el-descriptions-item label="部门">
-            {{ getDepartmentName(selectedInterview.department) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="备注">
-            {{ selectedInterview.notes || "无" }}
-          </el-descriptions-item>
-        </el-descriptions>
+      <div class="interview-detail-container">
+        <div v-if="selectedInterview" class="interview-detail">
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="候选人">
+              {{ selectedInterview.candidate }}
+            </el-descriptions-item>
+            <el-descriptions-item label="时间">
+              {{ formatDateTime(selectedInterview.datetime) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="面试官">
+              {{ selectedInterview.interviewer }}
+            </el-descriptions-item>
+            <el-descriptions-item label="部门">
+              {{ getDepartmentName(selectedInterview.department) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="备注">
+              {{ selectedInterview.notes || "无" }}
+            </el-descriptions-item>
+          </el-descriptions>
 
-        <!-- 学生详细信息 -->
-        <div class="student-detail-section" style="margin-top: 20px">
-          <el-divider>学生详细信息</el-divider>
-          <div v-loading="loadingStudentDetail">
-            <div v-if="studentDetail" class="student-info">
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="学号">
-                  {{ studentDetail.netid }}
-                </el-descriptions-item>
-                <el-descriptions-item label="姓名">
-                  {{ studentDetail.name }}
-                </el-descriptions-item>
-                <el-descriptions-item label="电话">
-                  {{ studentDetail.phone }}
-                </el-descriptions-item>
-                <el-descriptions-item label="书院">
-                  {{ studentDetail.school }}
-                </el-descriptions-item>
-                <el-descriptions-item label="已掌握技能" span="2">
-                  {{ studentDetail.mastered }}
-                </el-descriptions-item>
-                <el-descriptions-item label="想掌握技能" span="2">
-                  {{ studentDetail.tomaster }}
-                </el-descriptions-item>
-              </el-descriptions>
+          <!-- 学生详细信息 -->
+          <div class="student-detail-section" style="margin-top: 20px">
+            <el-divider>学生详细信息</el-divider>
+            <div v-loading="loadingStudentDetail">
+              <div v-if="studentDetail" class="student-info">
+                <el-descriptions :column="2" border>
+                  <el-descriptions-item label="学号">
+                    {{ studentDetail.netid }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="姓名">
+                    {{ studentDetail.name }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="电话">
+                    {{ studentDetail.phone }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="书院">
+                    {{ studentDetail.school }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="已掌握技能" span="2">
+                    {{ studentDetail.mastered }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="想掌握技能" span="2">
+                    {{ studentDetail.tomaster }}
+                  </el-descriptions-item>
+                </el-descriptions>
 
-              <!-- 抽到的题目 -->
-              <div
-                v-if="studentDetail.queid && studentDetail.queid > 0"
-                class="question-section"
-                style="margin-top: 16px"
-              >
-                <el-divider>面试题目</el-divider>
-                <div class="question-content">
-                  <div
-                    v-if="studentDetail.questionContent"
-                    class="markdown-content"
-                  >
+                <!-- 抽到的题目 -->
+                <div
+                  v-if="studentDetail.queid && studentDetail.queid > 0"
+                  class="question-section"
+                  style="margin-top: 16px"
+                >
+                  <el-divider>面试题目</el-divider>
+                  <div class="question-content">
                     <div
-                      v-html="renderMarkdown(studentDetail.questionContent)"
-                    ></div>
-                  </div>
-                  <div v-else class="no-question">
-                    题目ID: {{ studentDetail.queid }} (题目内容获取失败)
-                  </div>
-
-                  <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
-                  <div
-                    v-if="studentDetail.questionUrl"
-                    class="question-media"
-                    style="margin-top: 12px"
-                  >
-                    <!-- 图片显示 -->
-                    <img
-                      v-if="isImageUrl(studentDetail.questionUrl)"
-                      :src="getFullFileUrl(studentDetail.questionUrl)"
-                      :alt="'题目图片'"
-                      class="question-image"
-                      @error="handleMediaError"
-                    />
-                    <!-- 视频显示 -->
-                    <video
-                      v-else-if="isVideoUrl(studentDetail.questionUrl)"
-                      :src="getFullFileUrl(studentDetail.questionUrl)"
-                      controls
-                      class="question-video"
-                      @error="handleMediaError"
+                      v-if="studentDetail.questionContent"
+                      class="markdown-content"
                     >
-                      您的浏览器不支持视频播放
-                    </video>
-                    <!-- 其他链接显示为可点击链接 -->
-                    <div v-else class="question-link">
-                      <el-link
-                        :href="getFullFileUrl(studentDetail.questionUrl)"
-                        target="_blank"
-                        type="primary"
+                      <div
+                        v-html="renderMarkdown(studentDetail.questionContent)"
+                      ></div>
+                    </div>
+                    <div v-else class="no-question">
+                      题目ID: {{ studentDetail.queid }} (题目内容获取失败)
+                    </div>
+
+                    <!-- 如果有题目链接，直接嵌入显示图片/视频 -->
+                    <div
+                      v-if="studentDetail.questionUrl"
+                      class="question-media"
+                      style="margin-top: 12px"
+                    >
+                      <!-- 图片显示 -->
+                      <img
+                        v-if="isImageUrl(studentDetail.questionUrl)"
+                        :src="getFullFileUrl(studentDetail.questionUrl)"
+                        :alt="'题目图片'"
+                        class="question-image"
+                        @error="handleMediaError"
+                      />
+                      <!-- 视频显示 -->
+                      <video
+                        v-else-if="isVideoUrl(studentDetail.questionUrl)"
+                        :src="getFullFileUrl(studentDetail.questionUrl)"
+                        controls
+                        class="question-video"
+                        @error="handleMediaError"
                       >
-                        查看题目附件/链接
-                      </el-link>
+                        您的浏览器不支持视频播放
+                      </video>
+                      <!-- 其他链接显示为可点击链接 -->
+                      <div v-else class="question-link">
+                        <el-link
+                          :href="getFullFileUrl(studentDetail.questionUrl)"
+                          target="_blank"
+                          type="primary"
+                        >
+                          查看题目附件/链接
+                        </el-link>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                <div v-else class="no-question" style="margin-top: 16px">
+                  <el-alert
+                    title="该学生尚未抽取题目"
+                    type="info"
+                    :closable="false"
+                  >
+                  </el-alert>
+                </div>
               </div>
 
-              <div v-else class="no-question" style="margin-top: 16px">
+              <div v-else-if="!loadingStudentDetail" class="no-student-detail">
                 <el-alert
-                  title="该学生尚未抽取题目"
-                  type="info"
+                  title="无法获取学生详细信息"
+                  type="warning"
                   :closable="false"
                 >
                 </el-alert>
               </div>
-            </div>
-
-            <div v-else-if="!loadingStudentDetail" class="no-student-detail">
-              <el-alert
-                title="无法获取学生详细信息"
-                type="warning"
-                :closable="false"
-              >
-              </el-alert>
             </div>
           </div>
         </div>
@@ -1792,12 +1794,33 @@ onMounted(async () => {
   margin-left: auto;
 }
 
-/* 学生详情样式 */
-.student-detail-section {
-  max-height: 400px;
+/* 面试详情容器样式 */
+.interview-detail-container {
+  max-height: 60vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
 }
 
+.interview-detail-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.interview-detail-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.interview-detail-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.interview-detail-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 学生详情样式 */
 .student-info .el-descriptions {
   margin-bottom: 0;
 }
@@ -1807,11 +1830,6 @@ onMounted(async () => {
   border-radius: 8px;
   padding: 16px;
   background-color: #fafafa;
-}
-
-.question-content {
-  max-height: 300px;
-  overflow-y: auto;
 }
 
 .markdown-content {
@@ -1975,8 +1993,6 @@ onMounted(async () => {
   background: #f9f9f9;
   border-radius: 6px;
   border: 1px solid #e1e4e8;
-  max-height: 400px;
-  overflow-y: auto;
   line-height: 1.6;
   color: #24292e;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
@@ -2128,11 +2144,6 @@ onMounted(async () => {
   font-style: italic;
 }
 
-.student-detail-section {
-  max-height: 600px;
-  overflow-y: auto;
-}
-
 .student-info .el-descriptions {
   margin-bottom: 16px;
 }
@@ -2155,21 +2166,11 @@ onMounted(async () => {
 }
 
 /* 学生详情和题目显示样式 */
-.student-detail-section {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
 .student-info .question-section {
   background-color: #f8f9fa;
   padding: 16px;
   border-radius: 8px;
   border: 1px solid #e9ecef;
-}
-
-.question-content {
-  max-height: 300px;
-  overflow-y: auto;
 }
 
 .markdown-content {
