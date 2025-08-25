@@ -589,6 +589,7 @@ interface Interview {
   star: number;
   evaluation: string;
   pass: number;
+  studentName?: string;
 }
 
 interface InterviewDateInfo {
@@ -702,7 +703,7 @@ const dailyInterviews = computed(() => {
         id: interview.id,
         openid: "",
         netid: interview.netid || "",
-        name: interview.netid || "未知", // 使用netid作为默认名称
+        name: interview.studentName || "未知",
         phone: "",
         school: "",
         whereknow: "",
@@ -1212,6 +1213,10 @@ const saveStudent = async () => {
       updateStatistics();
     }
 
+    if (selectedDate.value) {
+      await fetchInterviewsByDate(selectedDate.value);
+    }
+
     ElMessage.success("学生信息更新成功");
     closeEdit();
   } catch (error) {
@@ -1283,7 +1288,10 @@ const fetchInterviewsByDate = async (date: string) => {
       const availableInterviews: any[] = [];
       const unavailableInterviews: any[] = [];
 
-      interviews.forEach((interview: any) => {
+      interviews.forEach((intervInfo: any) => {
+        const interview = intervInfo.interv || intervInfo;
+        const studentName = intervInfo.name || "未知";
+
         // 如果已被预约（netid不为空）或时间临近（1小时内），则为不可用
         const now = new Date();
         const interviewTime = new Date(interview.time);
@@ -1291,9 +1299,9 @@ const fetchInterviewsByDate = async (date: string) => {
 
         // if (interview.netid || isWithinOneHour) {
         if (interview.netid) {
-          unavailableInterviews.push(interview);
+          unavailableInterviews.push({ ...interview, studentName });
         } else {
-          availableInterviews.push(interview);
+          availableInterviews.push({ ...interview, studentName });
         }
       });
 
