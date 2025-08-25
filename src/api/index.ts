@@ -175,7 +175,7 @@ export const interviewAPI = {
   // 取消面试安排
   cancelInterview: (id: number) => axios.put("/api/interv/cancel", { id }),
 
-  // 删除面试安排 (保留原方法以防其他地方使用)
+  // 删除面试安排 (暂未使用)
   deleteInterview: (id: number) =>
     axios.delete("/api/interv", { data: { id: [id] } }),
 

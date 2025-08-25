@@ -1267,33 +1267,6 @@ const fetchInterviewDates = async () => {
   }
 };
 
-// 预加载所有日期的已预约面试数量
-const preloadBookedInterviewCounts = async () => {
-  // 为每个有面试的日期获取已预约数量
-  const loadPromises = interviewDates.value.map(async (dateInfo) => {
-    try {
-      const dateParam = `${dateInfo.date}T00:00:00Z`;
-      const response = await interviewAPI.getInterviewsByDate(dateParam);
-      if (response.data && response.data.success) {
-        // 新接口返回的是 { total, data } 格式
-        const interviews = response.data.data?.data || [];
-        const bookedInterviews = interviews.filter(
-          (interview: any) => interview.netid && interview.netid.trim() !== ""
-        );
-        const unavailableCount = bookedInterviews.length;
-        bookedInterviewCounts.value.set(dateInfo.date, unavailableCount);
-      } else {
-        bookedInterviewCounts.value.set(dateInfo.date, 0);
-      }
-    } catch (error) {
-      console.error(`获取 ${dateInfo.date} 面试信息失败:`, error);
-      bookedInterviewCounts.value.set(dateInfo.date, 0);
-    }
-  });
-
-  await Promise.all(loadPromises);
-};
-
 // 获取某天的面试信息
 const fetchInterviewsByDate = async (date: string) => {
   loading.value = true;
@@ -1305,10 +1278,8 @@ const fetchInterviewsByDate = async (date: string) => {
     if (response.data && response.data.success) {
       const data = response.data.data;
 
-      // 新接口返回的是 { total, data } 格式
       const interviews = data?.data || [];
 
-      // 分离可用和不可用面试
       const availableInterviews: any[] = [];
       const unavailableInterviews: any[] = [];
 
@@ -1358,11 +1329,10 @@ const isSelectedDate = (date: string) => {
   return selectedDate.value === date;
 };
 
-// 获取某日的面试数量（已预约的面试）
+// 获取某日的面试数量
 const getInterviewCountForDate = (date: string) => {
-  // 从已预约面试数量映射中获取
-  const count = bookedInterviewCounts.value.get(date);
-  return count !== undefined ? count : 0;
+  const found = interviewDates.value.find((d) => d.date === date);
+  return found ? found.total : 0;
 };
 
 const loadMockData = () => {
@@ -1426,9 +1396,6 @@ onMounted(async () => {
   // 获取数据
   await fetchStudents(1);
   await fetchInterviewDates();
-
-  // 预加载所有日期的已预约面试数量
-  await preloadBookedInterviewCounts();
 
   // 获取当前日期的面试信息
   await fetchInterviewsByDate(selectedDate.value);
@@ -1947,11 +1914,6 @@ onMounted(async () => {
   color: #c0c4cc;
 }
 
-.calendar-cell.other-month:hover .date-number {
-  background-color: #f0f0f0;
-  color: #c0c4cc;
-}
-
 .interview-dot {
   background-color: #409eff;
   color: white;
@@ -1967,14 +1929,14 @@ onMounted(async () => {
   right: 4px;
 }
 
-.calendar-cell.selected-date .interview-dot {
-  background-color: white;
-  color: #409eff;
-}
-
 .calendar-cell.other-month .interview-dot {
   background-color: #c0c4cc;
   color: white;
+}
+
+.calendar-cell.selected-date .interview-dot {
+  background-color: white;
+  color: #409eff;
 }
 
 .daily-schedule {
