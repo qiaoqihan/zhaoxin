@@ -589,6 +589,9 @@ interface Interview {
   star: number;
   evaluation: string;
   pass: number;
+  quetime: number;
+  status: number;
+  name: string;
   studentName?: string;
 }
 
@@ -1288,9 +1291,8 @@ const fetchInterviewsByDate = async (date: string) => {
       const availableInterviews: any[] = [];
       const unavailableInterviews: any[] = [];
 
-      interviews.forEach((intervInfo: any) => {
-        const interview = intervInfo.interv || intervInfo;
-        const studentName = intervInfo.name || "未知";
+      interviews.forEach((interview: any) => {
+        const studentName = interview.name || "未知";
 
         // 如果已被预约（netid不为空）或时间临近（1小时内），则为不可用
         const now = new Date();
@@ -1367,6 +1369,9 @@ const loadMockData = () => {
         evaluation: "基础扎实，学习能力强",
         pass: 1,
         queid: 1,
+        quetime: 0,
+        status: 1,
+        name: "张三",
       },
       message: 7,
       queid: 1,
