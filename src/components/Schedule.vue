@@ -597,12 +597,30 @@ const handleInterviewDateChange = async (date: string) => {
     const dateParam = `${date}T00:00:00Z`;
     const res = await interviewAPI.getInterviewsByDate(dateParam);
     if (res.data && res.data.success && res.data.data) {
-      const available = Array.isArray(res.data.data.available)
-        ? res.data.data.available
+      // 新接口返回的是 { total, data } 格式
+      const interviews = Array.isArray(res.data.data.data)
+        ? res.data.data.data
         : [];
-      const unavailable = Array.isArray(res.data.data.unavailable)
-        ? res.data.data.unavailable
-        : [];
+
+      // 分离可用和不可用时间
+      const available: any[] = [];
+      const unavailable: any[] = [];
+
+      interviews.forEach((item: any) => {
+        // 如果已被预约（netid不为空）或时间临近（1小时内），则为不可用
+        const now = new Date();
+        const interviewTime = new Date(item.time);
+        // const isWithinOneHour =
+        //   interviewTime.getTime() - now.getTime() < 60 * 60 * 1000;
+
+        // if (item.netid || isWithinOneHour) {
+        if (item.netid) {
+          unavailable.push(item);
+        } else {
+          available.push(item);
+        }
+      });
+
       // 合并所有时间，available优先
       const allTimes: TimeOption[] = [];
       available.forEach((item: any) => {
@@ -1203,38 +1221,37 @@ const fetchInterviewsByDate = async (date: string) => {
       // 转换为日程格式
       const convertedInterviews: ScheduleInterview[] = [];
 
-      if (data === null) {
+      if (data === null || !data.data || data.data.length === 0) {
         console.log(`${date} 当天没有面试`);
       } else {
-        if (data.unavailable && Array.isArray(data.unavailable)) {
-          // 只处理已被预约的面试（netid不为空的项目）
-          const bookedInterviews = data.unavailable.filter(
-            (interview: Interview) =>
-              interview.netid && interview.netid.trim() !== ""
-          );
+        // 新接口返回的是 { total, data } 格式
+        const interviews = Array.isArray(data.data) ? data.data : [];
 
-          // 并发获取所有学生姓名
-          const namePromises = bookedInterviews.map(
-            async (interview: Interview) => {
-              const name = interview.netid
-                ? await getStudent(interview.netid)
-                : null;
-              return {
-                id: interview.id,
-                title: `面试-${name || interview.netid || "未知学生"}`,
-                candidate: name || interview.netid || "未知学生",
-                netid: interview.netid || "",
-                datetime: interview.time,
-                interviewer: interview.interviewer || "面试官",
-                department: interview.department || "未知部门",
-                status: "scheduled",
-                notes: interview.evaluation || "",
-              };
-            }
-          );
-          const interviewsWithNames = await Promise.all(namePromises);
-          convertedInterviews.push(...interviewsWithNames);
-        }
+        // 只处理已被预约的面试（netid不为空的项目）
+        const bookedInterviews = interviews.filter(
+          (interview: any) => interview.netid && interview.netid.trim() !== ""
+        );
+
+        // 并发获取所有学生姓名
+        const namePromises = bookedInterviews.map(async (interview: any) => {
+          let name = interview.name;
+          if (!name && interview.netid) {
+            name = await getStudent(interview.netid);
+          }
+          return {
+            id: interview.id,
+            title: `面试-${name || interview.netid || "未知学生"}`,
+            candidate: name || interview.netid || "未知学生",
+            netid: interview.netid || "",
+            datetime: interview.time,
+            interviewer: interview.interviewer || "面试官",
+            department: interview.department || "未知部门",
+            status: "scheduled",
+            notes: interview.evaluation || "",
+          };
+        });
+        const interviewsWithNames = await Promise.all(namePromises);
+        convertedInterviews.push(...interviewsWithNames);
       }
 
       // 移除该日期的旧数据，添加新数据

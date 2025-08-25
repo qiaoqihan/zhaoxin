@@ -1275,10 +1275,11 @@ const preloadBookedInterviewCounts = async () => {
       const dateParam = `${dateInfo.date}T00:00:00Z`;
       const response = await interviewAPI.getInterviewsByDate(dateParam);
       if (response.data && response.data.success) {
-        const bookedInterviews =
-          response.data.data?.unavailable?.filter(
-            (interview: any) => interview.netid && interview.netid.trim() !== ""
-          ) || [];
+        // 新接口返回的是 { total, data } 格式
+        const interviews = response.data.data?.data || [];
+        const bookedInterviews = interviews.filter(
+          (interview: any) => interview.netid && interview.netid.trim() !== ""
+        );
         const unavailableCount = bookedInterviews.length;
         bookedInterviewCounts.value.set(dateInfo.date, unavailableCount);
       } else {
@@ -1304,8 +1305,26 @@ const fetchInterviewsByDate = async (date: string) => {
     if (response.data && response.data.success) {
       const data = response.data.data;
 
-      const availableInterviews = data.available || [];
-      const unavailableInterviews = data.unavailable || [];
+      // 新接口返回的是 { total, data } 格式
+      const interviews = data?.data || [];
+
+      // 分离可用和不可用面试
+      const availableInterviews: any[] = [];
+      const unavailableInterviews: any[] = [];
+
+      interviews.forEach((interview: any) => {
+        // 如果已被预约（netid不为空）或时间临近（1小时内），则为不可用
+        const now = new Date();
+        const interviewTime = new Date(interview.time);
+        // const isWithinOneHour = (interviewTime.getTime() - now.getTime()) < (60 * 60 * 1000);
+
+        // if (interview.netid || isWithinOneHour) {
+        if (interview.netid) {
+          unavailableInterviews.push(interview);
+        } else {
+          availableInterviews.push(interview);
+        }
+      });
 
       dailyInterviewsData.value = {
         available: availableInterviews,

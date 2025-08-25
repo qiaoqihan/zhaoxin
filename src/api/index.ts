@@ -184,10 +184,10 @@ export const interviewAPI = {
 
   // 获取某天的面试信息
   getInterviewsByDate: (date: string) =>
-    axios.get("/api/stu/interv", { params: { date } }),
+    axios.get("/api/interv/", { params: { date } }),
 
   // 获取所有面试日期
-  getInterviewDates: () => axios.get("/api/stu/date"),
+  getInterviewDates: () => axios.get("/api/interv/date"),
 };
 
 export const questionAPI = {
