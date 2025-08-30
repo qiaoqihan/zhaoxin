@@ -112,6 +112,17 @@
             </div>
           </el-card>
         </div>
+        <el-card
+          class="add-interview-card"
+          :body-style="{ padding: '12px' }"
+          @click="showSetTimeDialog = true"
+          style="cursor: pointer"
+        >
+          <div class="add-interview-btn">
+            <img :src="AddIcon" alt="add" class="add-icon" />
+            <span class="add-text">设置可查询面试时间</span>
+          </div>
+        </el-card>
         <!-- 月历 -->
         <el-card class="calendar-card">
           <div class="calendar-header">
@@ -459,6 +470,37 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 设置可查询面试时间对话框 -->
+    <el-dialog
+      v-model="showSetTimeDialog"
+      title="设置可查询面试时间"
+      width="400px"
+    >
+      <el-form :model="setTimeForm" label-width="90px">
+        <el-form-item label="时间">
+          <el-date-picker
+            v-model="setTimeForm.datetime"
+            type="datetime"
+            placeholder="选择时间"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ssZ"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showSetTimeDialog = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="handleSetTimeSave"
+            :loading="settingTime"
+            >保存</el-button
+          >
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -466,7 +508,13 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
-import { interviewAPI, studentAPI, handleApiError, questionAPI } from "../api";
+import {
+  interviewAPI,
+  studentAPI,
+  handleApiError,
+  questionAPI,
+  adminAPI,
+} from "../api";
 import systemConfig from "@/config";
 import AddIcon from "../assets/Linear - Essentional, UI - Add Circle.svg";
 import type { CSSProperties } from "vue";
@@ -536,6 +584,7 @@ const deleting = ref(false);
 const showDetailDialog = ref(false);
 const showAddDialog = ref(false);
 const showManageTimeDialog = ref(false);
+const showSetTimeDialog = ref(false);
 const isEdit = ref(false);
 
 // 管理面试时间表单
@@ -546,6 +595,12 @@ const manageTimeForm = reactive({
   interval: 30,
 });
 const savingTime = ref(false);
+
+// 设置可查询面试时间表单
+const setTimeForm = reactive({
+  datetime: "",
+});
+const settingTime = ref(false);
 
 const currentWeek = ref(new Date());
 const currentMonth = ref(new Date());
@@ -1344,6 +1399,34 @@ const handleManageTimeSave = async () => {
     ElMessage.error("保存失败");
   } finally {
     savingTime.value = false;
+  }
+};
+
+// 设置可查询面试时间保存
+const handleSetTimeSave = async () => {
+  if (!setTimeForm.datetime) {
+    ElMessage.warning("请选择时间");
+    return;
+  }
+
+  settingTime.value = true;
+  try {
+    const datetime = new Date(setTimeForm.datetime);
+    const formattedTime = datetime.toISOString().replace("Z", "+08:00");
+
+    await adminAPI.setInterviewTime({
+      time: formattedTime,
+    });
+    ElMessage.success("可查询面试时间设置成功");
+    showSetTimeDialog.value = false;
+    // 重置表单
+    setTimeForm.datetime = "";
+  } catch (error) {
+    console.error("设置可查询面试时间失败:", error);
+    const errorMessage = handleApiError(error);
+    ElMessage.error(`设置失败: ${errorMessage}`);
+  } finally {
+    settingTime.value = false;
   }
 };
 

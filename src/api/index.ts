@@ -243,6 +243,9 @@ export const adminAPI = {
   // 获取管理员信息
   getProfile: () => axios.get("/api/"),
 
+  // 设置可查询面试时间
+  setInterviewTime: (data: any) => axios.post("/api/admin/settime", data),
+
   // 退出登录
   logout: () => axios.delete("/api/admin/"),
 };
