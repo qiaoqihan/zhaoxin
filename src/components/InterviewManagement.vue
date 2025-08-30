@@ -44,13 +44,16 @@
               <div v-show="showAdvancedFilter" class="advanced-filter-panel">
                 <el-row :gutter="20">
                   <el-col :span="8">
-                    <el-form-item label="学号">
-                      <el-input
-                        v-model="advancedFilters.netid"
-                        placeholder="请输入学号"
+                    <el-form-item label="面试状态">
+                      <el-select
+                        v-model="advancedFilters.passStatus"
+                        placeholder="选择面试状态"
                         clearable
                         @change="handleAdvancedFilterChange"
-                      />
+                      >
+                        <el-option label="已通过" value="passed" />
+                        <el-option label="未通过" value="failed" />
+                      </el-select>
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
@@ -78,6 +81,31 @@
                     </el-form-item>
                   </el-col>
                 </el-row>
+                <!-- <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="面试状态">
+                      <el-select
+                        v-model="advancedFilters.passStatus"
+                        placeholder="选择面试状态"
+                        clearable
+                        @change="handleAdvancedFilterChange"
+                      >
+                        <el-option label="已通过" value="passed" />
+                        <el-option label="未通过" value="failed" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="面试官">
+                      <el-input
+                        v-model="advancedFilters.interviewer"
+                        placeholder="请输入面试官"
+                        clearable
+                        @change="handleAdvancedFilterChange"
+                      />
+                    </el-form-item>
+                  </el-col>
+                </el-row> -->
                 <el-row :gutter="20">
                   <el-col :span="24">
                     <div class="advanced-filter-actions">
@@ -923,7 +951,7 @@ const fetchStudents = async (page: number = 1) => {
     }
     // 通过状态筛选
     if (advancedFilters.passStatus && advancedFilters.passStatus !== "") {
-      params.pass = advancedFilters.passStatus === "passed" ? 1 : 0;
+      params.pass = advancedFilters.passStatus === "passed" ? 1 : 2;
     }
 
     // 调用后端API获取学生数据
