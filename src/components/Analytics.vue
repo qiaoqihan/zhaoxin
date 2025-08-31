@@ -188,6 +188,51 @@ const stats = reactive({
 // 加载状态
 const loading = ref(false);
 
+// 标准书院列表
+const standardColleges = [
+  "彭康书院",
+  "仲英书院",
+  "崇实书院",
+  "文治书院",
+  "励志书院",
+  "宗濂书院",
+  "南洋书院",
+  "钱学森书院",
+];
+
+// 处理书院数据 - 只显示标准书院
+const processCollegeData = (
+  rawData: Array<{ name: string; value: number }>
+) => {
+  const processedData: Array<{ name: string; value: number }> = [];
+
+  // 初始化标准书院数据
+  standardColleges.forEach((college) => {
+    processedData.push({ name: college, value: 0 });
+  });
+
+  // 处理原始数据，忽略无效书院
+  rawData.forEach((item) => {
+    const collegeName = item.name?.trim();
+    if (!collegeName) {
+      return;
+    }
+
+    // 检查是否为标准书院
+    const standardIndex = standardColleges.findIndex(
+      (college) =>
+        collegeName.includes(college) || college.includes(collegeName)
+    );
+
+    if (standardIndex !== -1) {
+      processedData[standardIndex].value += item.value;
+    }
+  });
+
+  // 过滤掉人数为0的书院
+  return processedData.filter((item) => item.value > 0);
+};
+
 // 切换图表显示
 const toggleChart = (chartType: keyof typeof activeCharts.value) => {
   activeCharts.value[chartType] = !activeCharts.value[chartType];
@@ -222,12 +267,14 @@ const fetchStatistics = async () => {
           (data.depart.art || 0);
       }
 
-      // 更新书院统计 - 将 school 数据映射到 collegeStats
-      stats.collegeStats.data =
+      // 更新书院统计
+      const rawCollegeData =
         data.school?.map((item: any) => ({
           name: item.name,
           value: item.number,
         })) || [];
+
+      stats.collegeStats.data = processCollegeData(rawCollegeData);
       stats.collegeStats.total = data.total || 0;
 
       // 更新地域统计 - 将 province 数据映射到 regionStats
@@ -479,15 +526,15 @@ const initCollegeChart = () => {
   );
 
   // 根据书院数量动态调整整体宽度
-  const barWidth = 60;
+  const barWidth = stats.collegeStats.data.length > 6 ? 50 : 60;
   const barGap = 20;
   const dataCount = stats.collegeStats.data.length;
   const totalBarWidth = dataCount * barWidth + (dataCount - 1) * barGap;
 
-  // 动态计算 grid 宽度，书院较少时整体变窄
-  const gridWidth = Math.min(totalBarWidth + 80, 600);
-  const gridLeft = dataCount <= 3 ? "40%" : "25%";
-  const gridRight = dataCount <= 3 ? "40%" : "25%";
+  // 动态计算 grid 宽度
+  const gridWidth = Math.min(totalBarWidth + 80, 800);
+  const gridLeft = dataCount <= 4 ? "30%" : dataCount <= 6 ? "20%" : "10%";
+  const gridRight = dataCount <= 4 ? "30%" : dataCount <= 6 ? "20%" : "10%";
 
   const option = {
     tooltip: {
@@ -510,9 +557,11 @@ const initCollegeChart = () => {
     },
     xAxis: {
       type: "category",
-      data: stats.collegeStats.data.map((item) =>
-        item.name && item.name.trim() ? item.name : "未知书院"
-      ),
+      data: stats.collegeStats.data.map((item) => {
+        // 处理书院名称显示，如果名称过长则截断
+        const name = item.name && item.name.trim() ? item.name : "未知书院";
+        return name.length > 6 ? name.substring(0, 5) + "..." : name;
+      }),
       axisLine: {
         show: false,
       },
@@ -520,10 +569,11 @@ const initCollegeChart = () => {
         show: false,
       },
       axisLabel: {
-        fontSize: 16,
+        fontSize: 14,
         margin: 8,
         fontFamily: "Segoe UI",
         interval: 0,
+        rotate: stats.collegeStats.data.length > 8 ? 15 : 0, // 当书院数量多时倾斜显示
       },
     },
     yAxis: {
@@ -678,7 +728,7 @@ const initRegionBarChart = () => {
 
   const option = {
     title: {
-      text: "学员地域分布",
+      text: "地域分布",
       left: "center",
     },
     tooltip: {

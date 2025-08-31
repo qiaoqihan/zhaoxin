@@ -123,6 +123,32 @@
             <span class="add-text">设置可查询面试时间</span>
           </div>
         </el-card>
+        <!-- <div style="display: flex; gap: 12px; margin-bottom: 8px">
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="handleSendInterviewResult"
+            style="flex: 1; cursor: pointer"
+            :loading="sendingResult"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="send" class="add-icon" />
+              <span class="add-text">发送微信面试结果</span>
+            </div>
+          </el-card>
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="handleSendAliyunSms"
+            style="flex: 1; cursor: pointer"
+            :loading="sendingAliyun"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="send" class="add-icon" />
+              <span class="add-text">发送短信</span>
+            </div>
+          </el-card>
+        </div> -->
         <!-- 月历 -->
         <el-card class="calendar-card">
           <div class="calendar-header">
@@ -601,6 +627,10 @@ const setTimeForm = reactive({
   datetime: "",
 });
 const settingTime = ref(false);
+
+// 发送相关的加载状态
+const sendingResult = ref(false);
+const sendingAliyun = ref(false);
 
 const currentWeek = ref(new Date());
 const currentMonth = ref(new Date());
@@ -1427,6 +1457,44 @@ const handleSetTimeSave = async () => {
     ElMessage.error(`设置失败: ${errorMessage}`);
   } finally {
     settingTime.value = false;
+  }
+};
+
+// 发送面试结果
+const handleSendInterviewResult = async () => {
+  sendingResult.value = true;
+  try {
+    const response = await adminAPI.sendInterviewResult();
+    if (response.data && response.data.success) {
+      ElMessage.success("面试结果发送成功");
+    } else {
+      ElMessage.error("发送失败");
+    }
+  } catch (error) {
+    console.error("发送面试结果失败:", error);
+    const errorMessage = handleApiError(error);
+    ElMessage.error(`发送失败: ${errorMessage}`);
+  } finally {
+    sendingResult.value = false;
+  }
+};
+
+// 发送阿里云短信
+const handleSendAliyunSms = async () => {
+  sendingAliyun.value = true;
+  try {
+    const response = await adminAPI.sendAliyunSms();
+    if (response.data && response.data.success) {
+      ElMessage.success("短信发送成功");
+    } else {
+      ElMessage.error("发送失败");
+    }
+  } catch (error) {
+    console.error("发送阿里云短信失败:", error);
+    const errorMessage = handleApiError(error);
+    ElMessage.error(`发送失败: ${errorMessage}`);
+  } finally {
+    sendingAliyun.value = false;
   }
 };
 

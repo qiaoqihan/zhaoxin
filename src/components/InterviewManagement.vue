@@ -160,27 +160,26 @@
                       <span v-if="student.interv">
                         <span
                           class="statue-text"
-                          v-if="
-                            getInterviewStatus(student.interv.time) === '已面试'
-                          "
+                          v-if="student.interv.status === 2"
                           style="color: #f40000"
                         >
                           状态:已面试
                         </span>
                         <span
                           class="statue-text"
-                          v-else-if="
-                            getInterviewStatus(student.interv.time) === '面试中'
-                          "
+                          v-else-if="student.interv.status === 1"
                           style="color: #a2b405"
                         >
-                          状态:面试中
+                          状态:面试中<span
+                            v-if="student.interv.quetime"
+                            class="countdown"
+                          >
+                            {{ getCountdownText(student.interv.quetime) }}</span
+                          >
                         </span>
                         <span
                           class="statue-text"
-                          v-else-if="
-                            getInterviewStatus(student.interv.time) === '未面试'
-                          "
+                          v-else-if="student.interv.status === 0"
                           style="color: #11b405"
                         >
                           状态:未面试
@@ -562,7 +561,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { ElMessage } from "element-plus";
 import { MoreFilled, CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { studentAPI, interviewAPI, handleApiError, questionAPI } from "../api";
@@ -661,6 +660,11 @@ const advancedFilters = reactive({
   netid: "",
   school: "",
 });
+
+// 倒计时相关
+const countdownTimers = ref<Map<number, number>>(new Map()); // 存储每个面试的倒计时时间
+const currentTime = ref(Math.floor(Date.now() / 1000)); // 当前时间戳，用于响应式更新
+let countdownInterval: NodeJS.Timeout | null = null;
 
 // 统计数据
 const statistics = reactive({
@@ -896,6 +900,51 @@ const getInterviewStatus = (interviewTime: string) => {
   }
 };
 
+// 获取抽题倒计时文本
+const getCountdownText = (quetime: number) => {
+  const elapsed = currentTime.value - quetime; // 已经过去的时间（秒）
+  const remaining = Math.max(0, 10 * 60 - elapsed); // 10分钟倒计时，剩余时间（秒）
+
+  if (remaining <= 0) {
+    return "抽题时间已结束";
+  }
+
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  return `抽题剩余 ${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
+// 开始倒计时
+const startCountdown = () => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+
+  countdownInterval = setInterval(() => {
+    // 更新当前时间戳以触发响应式更新
+    currentTime.value = Math.floor(Date.now() / 1000);
+
+    // 检查是否还有面试中的学生
+    const interviewingStudents = students.value.filter(
+      (s) => s.interv && s.interv.status === 1 && s.interv.quetime
+    );
+
+    // 如果没有面试中的学生，停止倒计时
+    if (interviewingStudents.length === 0 && countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+  }, 1000);
+};
+
+// 停止倒计时
+const stopCountdown = () => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+};
+
 const updateStatistics = () => {
   statistics.total = students.value.length;
   statistics.interviewed = students.value.filter((s) => s.interv).length;
@@ -981,6 +1030,8 @@ const fetchStudents = async (page: number = 1) => {
       loadMockData();
     }
     updateStatistics();
+    // 重新启动倒计时
+    startCountdown();
   } catch (error) {
     console.error("获取学生数据失败:", error);
     // 使用模拟数据
@@ -1440,6 +1491,14 @@ onMounted(async () => {
 
   // 获取当前日期的面试信息
   await fetchInterviewsByDate(selectedDate.value);
+
+  // 启动倒计时
+  startCountdown();
+});
+
+onUnmounted(() => {
+  // 组件卸载时清理倒计时
+  stopCountdown();
 });
 </script>
 
@@ -1596,7 +1655,7 @@ onMounted(async () => {
 .student-card .info-item {
   flex: 1;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 
@@ -1605,7 +1664,7 @@ onMounted(async () => {
 }
 
 .student-card .info-item:last-child {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .card-main-info-flex {
@@ -1768,6 +1827,15 @@ onMounted(async () => {
   padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
+  display: inline-block;
+  min-width: 80px;
+  text-align: left;
+}
+
+.countdown {
+  font-size: 13px;
+  color: #e6a23c;
+  margin-left: 4px;
 }
 
 .interview-card {

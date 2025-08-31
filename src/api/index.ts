@@ -246,6 +246,12 @@ export const adminAPI = {
   // 设置可查询面试时间
   setInterviewTime: (data: any) => axios.post("/api/admin/settime", data),
 
+  // 给学生发送面试结果
+  sendInterviewResult: () => axios.get("/api/admin/send"),
+
+  // 阿里云发送短信
+  sendAliyunSms: () => axios.get("/api/admin/aliyun"),
+
   // 退出登录
   logout: () => axios.delete("/api/admin/"),
 };
