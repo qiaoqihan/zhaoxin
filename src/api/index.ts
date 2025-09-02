@@ -159,6 +159,9 @@ export const studentAPI = {
     };
     return axios.put(`/api/admin/stu${id}`, requestData);
   },
+
+  // 删除学生
+  deleteStudent: (id: number) => axios.delete(`/api/admin/stu${id}`),
 };
 
 export const interviewAPI = {

@@ -439,6 +439,9 @@
 
             <div class="form-actions">
               <el-button @click="closeEdit">取消</el-button>
+              <el-button type="danger" @click="deleteStudent" :loading="saving">
+                删除学生
+              </el-button>
               <el-button type="primary" @click="saveStudent" :loading="saving">
                 保存
               </el-button>
@@ -562,7 +565,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { MoreFilled, CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { studentAPI, interviewAPI, handleApiError, questionAPI } from "../api";
 import systemConfig from "@/config";
@@ -1305,6 +1308,54 @@ const saveStudent = async () => {
     console.error("保存失败:", error);
     const errorMessage = handleApiError(error);
     ElMessage.error(`保存失败: ${errorMessage}`);
+  } finally {
+    saving.value = false;
+  }
+};
+
+// 删除学生
+const deleteStudent = async () => {
+  if (!editingStudent.value) return;
+
+  try {
+    await ElMessageBox.confirm(
+      `确认要删除学生 "${editingStudent.value.name}" 吗？此操作不可恢复！`,
+      "确认删除",
+      {
+        confirmButtonText: "确定删除",
+        cancelButtonText: "取消",
+        type: "warning",
+        confirmButtonClass: "el-button--danger",
+      }
+    );
+
+    saving.value = true;
+
+    // 调用删除学生API
+    await studentAPI.deleteStudent(editingStudent.value.id);
+
+    // 从本地数据中移除该学生
+    const studentIndex = students.value.findIndex(
+      (s) => s.id === editingStudent.value!.id
+    );
+    if (studentIndex !== -1) {
+      students.value.splice(studentIndex, 1);
+      updateStatistics();
+    }
+
+    // 刷新面试数据
+    if (selectedDate.value) {
+      await fetchInterviewsByDate(selectedDate.value);
+    }
+
+    ElMessage.success("学生删除成功");
+    closeEdit();
+  } catch (error) {
+    if (error !== "cancel") {
+      console.error("删除失败:", error);
+      const errorMessage = handleApiError(error);
+      ElMessage.error(`删除失败: ${errorMessage}`);
+    }
   } finally {
     saving.value = false;
   }

@@ -112,43 +112,7 @@
             </div>
           </el-card>
         </div>
-        <el-card
-          class="add-interview-card"
-          :body-style="{ padding: '12px' }"
-          @click="showSetTimeDialog = true"
-          style="cursor: pointer"
-        >
-          <div class="add-interview-btn">
-            <img :src="AddIcon" alt="add" class="add-icon" />
-            <span class="add-text">设置可查询面试时间</span>
-          </div>
-        </el-card>
-        <!-- <div style="display: flex; gap: 12px; margin-bottom: 8px">
-          <el-card
-            class="add-interview-card"
-            :body-style="{ padding: '12px' }"
-            @click="handleSendInterviewResult"
-            style="flex: 1; cursor: pointer"
-            :loading="sendingResult"
-          >
-            <div class="add-interview-btn">
-              <img :src="AddIcon" alt="send" class="add-icon" />
-              <span class="add-text">发送微信面试结果</span>
-            </div>
-          </el-card>
-          <el-card
-            class="add-interview-card"
-            :body-style="{ padding: '12px' }"
-            @click="handleSendAliyunSms"
-            style="flex: 1; cursor: pointer"
-            :loading="sendingAliyun"
-          >
-            <div class="add-interview-btn">
-              <img :src="AddIcon" alt="send" class="add-icon" />
-              <span class="add-text">发送短信</span>
-            </div>
-          </el-card>
-        </div> -->
+
         <!-- 月历 -->
         <el-card class="calendar-card">
           <div class="calendar-header">
@@ -224,6 +188,43 @@
             </div>
           </div>
         </el-card>
+        <el-card
+          class="add-interview-card"
+          :body-style="{ padding: '12px' }"
+          @click="showSetTimeDialog = true"
+          style="cursor: pointer"
+        >
+          <div class="add-interview-btn">
+            <img :src="AddIcon" alt="add" class="add-icon" />
+            <span class="add-text">设置可查询面试时间</span>
+          </div>
+        </el-card>
+        <div style="display: flex; gap: 12px; margin-bottom: 8px">
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="handleSendInterviewResult"
+            style="flex: 1; cursor: pointer"
+            :loading="sendingResult"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="send" class="add-icon" />
+              <span class="add-text">发送面试结果</span>
+            </div>
+          </el-card>
+          <el-card
+            class="add-interview-card"
+            :body-style="{ padding: '12px' }"
+            @click="handleSendAliyunSms"
+            style="flex: 1; cursor: pointer"
+            :loading="sendingAliyun"
+          >
+            <div class="add-interview-btn">
+              <img :src="AddIcon" alt="send" class="add-icon" />
+              <span class="add-text">发送短信</span>
+            </div>
+          </el-card>
+        </div>
       </div>
     </div>
 
