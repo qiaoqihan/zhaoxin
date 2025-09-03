@@ -272,6 +272,12 @@
                   placeholder="请输入书院"
                 />
               </el-form-item>
+              <el-form-item label="标签" prop="tag">
+                <el-input
+                  v-model="editingStudent.tag"
+                  placeholder="请输入标签"
+                />
+              </el-form-item>
               <el-form-item label="了解来源" prop="whereknow">
                 <el-input
                   v-model="editingStudent.whereknow"
@@ -311,12 +317,6 @@
                   <el-option label="视频部" value="video" />
                   <el-option label="美工部" value="art" />
                 </el-select>
-              </el-form-item>
-              <el-form-item label="标签" prop="tag">
-                <el-input
-                  v-model="editingStudent.tag"
-                  placeholder="请输入标签"
-                />
               </el-form-item>
             </el-card>
 
